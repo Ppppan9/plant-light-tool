@@ -14,10 +14,7 @@ import BOUQUET from './art-assets/bouquet.png';
 import FONT_URL from './art-assets/baloo800.woff';
 import GRASS_BACKGROUND from './art-assets/reference-grass.png';
 import GARDEN_FRAME from './art-assets/garden-frame.png';
-import VINE_LEAF from './art-assets/polished/leaf.webp';
-import VINE_LEAF_B from './art-assets/polished/leaf-b.webp';
 import FLOWER_ROOT from './art-assets/polished/leaf-root.webp';
-import SEED_ROOT from './art-assets/polished/seed.webp';
 import {createVinePainter} from './botanical.js';
 import {installFlower,composeFlower} from './flower-bloom.js';
 import {createInteractionFX} from './interaction-fx.js';
@@ -66,17 +63,14 @@ const interactionFX=createInteractionFX({sprite,item});
 
 export async function createAssets(S={}){
   if(!fontReady){try{const f=new FontFace('Bloom Rounded',`url(${FONT_URL})`,{weight:'800'});await f.load();document.fonts.add(f);}catch{}fontReady=true;}
-  const urls={bud_pink:BUD_PINK,bud_purple:BUD_PURPLE,bud_blue:BUD_BLUE,bud_orange:BUD_ORANGE,bud_white:BUD_WHITE,flower_pink:FLOWER_PINK,flower_purple:FLOWER_PURPLE,flower_blue:FLOWER_BLUE,flower_orange:FLOWER_ORANGE,flower_white:FLOWER_WHITE,soil:TILE,bouquet:BOUQUET,grass_background:GRASS_BACKGROUND,frame_art:GARDEN_FRAME,vine_leaf:VINE_LEAF,vine_leaf_b:VINE_LEAF_B,flower_root:FLOWER_ROOT,seed_art:SEED_ROOT,tuft_art:GRASS_TUFT,bush_right:BUSH_RIGHT,bush_left:BUSH_LEFT,watering_can:WATERING_CAN};
+  const urls={bud_pink:BUD_PINK,bud_purple:BUD_PURPLE,bud_blue:BUD_BLUE,bud_orange:BUD_ORANGE,bud_white:BUD_WHITE,flower_pink:FLOWER_PINK,flower_purple:FLOWER_PURPLE,flower_blue:FLOWER_BLUE,flower_orange:FLOWER_ORANGE,flower_white:FLOWER_WHITE,soil:TILE,bouquet:BOUQUET,grass_background:GRASS_BACKGROUND,frame_art:GARDEN_FRAME,flower_root:FLOWER_ROOT,tuft_art:GRASS_TUFT,bush_right:BUSH_RIGHT,bush_left:BUSH_LEFT,watering_can:WATERING_CAN};
   await Promise.all(Object.entries(urls).map(async([k,url])=>{if(!SOURCES[k]){const im=new Image();im.src=url;await im.decode();SOURCES[k]=im;}}));
   for(const [key,im]of Object.entries(SOURCES)){
     if(key.startsWith('bud_'))sprite(key,126,150,g=>g.drawImage(im,0,0,126,150),63,135.9375);
     else if(key.startsWith('flower_')&&key!=='flower_root')installFlower(sprite,key.slice(7),im);
-    else if(!['vine_leaf','vine_leaf_b','flower_root','seed_art'].includes(key))imageSprite(key,im);
+    else if(key!=='flower_root')imageSprite(key,im);
   }
   sprite('flower_leaves',116,65.25,g=>g.drawImage(SOURCES.flower_root,0,0,116,65.25),58,52.5625);
-  sprite('vine_leaf_polished',44,66,g=>g.drawImage(SOURCES.vine_leaf,0,0,44,66),22,60.5);
-  sprite('vine_leaf_b_polished',44,66,g=>g.drawImage(SOURCES.vine_leaf_b,0,0,44,66),22,60.5);
-  sprite('seed_art',60,62,g=>g.drawImage(SOURCES.seed_art,0,0,60,62));
   vinePainter.install();
   interactionFX.install();
   let endIcon=null;
@@ -179,8 +173,7 @@ export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
   for(let i=0;i<(ST.moves||[]).length;i++){
     const m=ST.moves[i],age=Math.max(0,time-(m.time||0)),moving=interactionFX.enabled(S),land=clamp((age-.18)/.25),squash=moving?Math.sin(land*Math.PI):0,bounce=squash*7*k,sc=k*(.7+.3*easeOut(age/.2));
     items.push(item('seed_shadow_'+i,'plant_shadow_polished',layout.cx(m.c),layout.cy(m.r)+6*k,k*.55,k*.55,0,.70,38));
-    items.push(item('seed_'+i,'seed_art',layout.cx(m.c),layout.cy(m.r)-12*k-Math.max(0,1-age/.18)*35-bounce,sc*(1+squash*.05),sc*(1-squash*.04),moving?Math.sin(land*Math.PI*2)*.045:0,1,39));
-    const sprout=moving?easeOut((age-.25)/.3):1;if(sprout>0)items.push(item('seed_sprout_'+i,'plant_root_sprout',layout.cx(m.c)-9*k,layout.cy(m.r)-8*k,k*.68*sprout,k*.68*sprout,-.13,1,35));
+    items.push(item('seed_'+i,'vine_gold_joint',layout.cx(m.c),layout.cy(m.r)-15*k-Math.max(0,1-age/.18)*35*k-bounce,sc*.91*(1+squash*.05),sc*.91*(1-squash*.04),moving?Math.sin(land*Math.PI*2)*.045:0,1,39));
   }
   for(const fl of L.flowers||[]){
     const color=['pink','purple','blue','orange','white'].includes(fl.color)?fl.color:'pink',opened=(ST.bloomed||[]).includes(fl.id),at=ST.bloomTimes?.[fl.id]??-100;

@@ -13,6 +13,9 @@ const eventFx=it=>/^fx_/.test(it.id)||/^(?:fx_watering_can|fx_water_drop|fx_wate
 const hash=s=>{let n=2166136261;for(const c of String(s)){n^=c.charCodeAt(0);n=Math.imul(n,16777619);}return(n>>>0).toString(36);};
 const countAsset=(n,total)=>'text_'+hash(JSON.stringify([`${n}/${total}`,48,'#22310d',{}]));
 async function frames(page,n=2){await page.evaluate(n=>new Promise(resolve=>{const next=()=>n--?requestAnimationFrame(next):resolve();requestAnimationFrame(next);}),n);}
+// The installed Playwright clock runs normally except during these short
+// samples. Pause before the action, so slow CDP or capture never ages it.
+async function pauseBeforeAction(page){await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));}
 async function reset(page,id='12',patch={}){
   await page.evaluate(({id,patch,base})=>{Object.assign(__app.S,base,patch);__app.newGame(id);__app.UI.helper=null;__app.UI.message=null;__app.UI.hideWin=false;}, {id,patch,base:BASE});
   // The playable end-state hook polls every 250ms; let a restarted board clear it.
@@ -31,11 +34,13 @@ async function runSuite(page,label,dir,{record=false}={}){
   await fs.mkdir(dir,{recursive:true});const evidence={label,steps:[],missing:[]};
   const take=async name=>{const s=await read(page);evidence.steps.push({name,...s});evidence.missing.push(...s.missing);return s;};
   stage(label+' · 花园入场 / 待机 / 触碰回弹');
-  await reset(page,'2',{showTutorial:false});await page.evaluate(()=>__app.newGame());await frames(page,2);
+  await reset(page,'2',{showTutorial:false});await pauseBeforeAction(page);
+  await page.evaluate(()=>__app.newGame());await page.clock.runFor(32);
   const entering=await take('level-entry'),firstTile=entering.items.find(i=>i.id==='soil_0_0');
   check(entering.time-entering.enteredAt<.2,label+' 新关卡记录独立入场起点');
   check(firstTile?.sy<.94&&firstTile?.op<.9,label+' 左上方土格仍在入场途中');
-  await page.waitForTimeout(900);const settledEntry=await take('level-entry-settled');
+  await page.clock.fastForward(900);await page.clock.runFor(16);const settledEntry=await take('level-entry-settled');
+  await page.clock.resume();
   check(settledEntry.items.find(i=>i.id==='soil_0_0')?.sy>firstTile.sy,label+' 土格入场弹落到完整尺寸');
   const startAngles=settledEntry.items.filter(i=>i.id.endsWith('_bud')).map(i=>[i.id,i.rot]);
   await page.waitForTimeout(150);const idle=await take('flower-idle');
@@ -124,14 +129,19 @@ async function runSuite(page,label,dir,{record=false}={}){
     return removedBloom.some(id=>i.id===id+'_bloom'||i.id===id+'_leaves');
   };
   const required=two.items.filter(fromRemovedMove).map(i=>i.id);
-  await clickHit(page,'undo');const undo=await take('undo-active'),ue=[...undo.feedback].reverse().find(e=>e.kind==='undo'),ghosts=ue?.ghosts||[],ghostIds=ghosts.map(i=>i.id);
+  const undoPoint=await xy(page,118,1484),plantPoint=await cellXY(page,plan[1].c,plan[1].r);
+  await pauseBeforeAction(page);
+  await page.mouse.click(undoPoint.x,undoPoint.y);await page.clock.runFor(48);
+  const undo=await take('undo-active'),ue=[...undo.feedback].reverse().find(e=>e.kind==='undo'),ghosts=ue?.ghosts||[],ghostIds=ghosts.map(i=>i.id);
   eq(undo.used,1,label+' 撤销恢复上一颗种子状态');eq(undo.vines.length,one.vines.length,label+' 撤销仅移除第二根系藤蔓');check(ghosts.length>0,label+' 撤销存在ghost快照');
   check(required.every(id=>ghostIds.includes(id)),label+' 被移除主藤/叶/小枝/小花/种子完整进入ghost',{missing:required.filter(id=>!ghostIds.includes(id))});
   check(ghosts.every(fromRemovedMove),label+' 满开后撤销只回收被移除分枝，不含保留分枝/棋盘/HUD',{unexpected:ghosts.filter(i=>!fromRemovedMove(i)).map(i=>i.id)});
   eq(new Set(ghostIds).size,ghostIds.length,label+' 每个移除精灵只生成一次ghost');check(undo.items.some(i=>/^fx_undo_/.test(i.id)),label+' 撤销快照已进入真实渲染列表');
   const ghostCount=undo.items.filter(i=>/^fx_undo_/.test(i.id)).length;eq(ghostCount,ghosts.length,label+' ghost快照与实际绘制一一对应');
   // Replant while the old removal effect is still alive. Retained branch IDs and transforms stay intact.
-  await clickCell(page,plan[1].c,plan[1].r);const replanted=await take('replant-during-undo');eq(replanted.used,2,label+' 撤销动画中再次落子成功');
+  await page.mouse.click(plantPoint.x,plantPoint.y);await page.clock.runFor(48);
+  const replanted=await take('replant-during-undo');eq(replanted.used,2,label+' 撤销动画中再次落子成功');
+  await page.clock.resume();
   const retained=two.items.filter(i=>{const index=branchIndex(i.id);return index!==null&&index<firstVines;});
   const changes=retained.flatMap(old=>{const it=replanted.items.find(i=>i.id===old.id);return !it||it.asset!==old.asset||['x','y','sx','sy','op'].some(k=>Math.abs(it[k]-old[k])>.001)?[old.id]:[];});
   check(changes.length===0,label+' 再次种植不改变保留分枝位置/尺寸/透明度',changes);check(replanted.items.some(i=>/^fx_undo_/.test(i.id)),label+' 再次种植期间原撤销效果仍独立存在');await shot(page,dir,'undoing');
@@ -163,14 +173,14 @@ let toolPage,toolContext;
 try{
   const build=await fs.readFile(path.join(ROOT,'index.html'));const buildSha=crypto.createHash('sha256').update(build).digest('hex');
   const tool=await newPage(browser,{width:1440,height:1100});toolPage=tool.page;toolContext=tool.context;contexts.add(toolContext);const toolRequests=[];toolPage.on('requestfailed',r=>toolRequests.push({url:r.url(),error:r.failure()?.errorText}));
-  await toolPage.goto(server.origin+'/index.html',{waitUntil:'load'});await waitGame(toolPage);await applySettings(toolPage,BASE);await reset(toolPage);
+  await toolPage.clock.install();await toolPage.goto(server.origin+'/index.html',{waitUntil:'load'});await waitGame(toolPage);await applySettings(toolPage,BASE);await reset(toolPage);
   stage('从工具实际导出本次构建的 Generic H5 ZIP');
   const zip=await nextDownload(toolPage,()=>toolPage.evaluate(()=>__app.action('_exportH5')),out),unpacked=path.join(out,'h5-unzipped');await unzip(zip,unpacked);
   const h5Path=path.join(unpacked,'generic','index.html'),h5Html=await fs.readFile(h5Path,'utf8'),h5Url=server.origin+'/'+path.relative(ROOT,h5Path).split(path.sep).join('/');
   check(h5Html.includes('window.__PLAYABLE__='),'实际导出ZIP含Generic可玩配置');check(!h5Html.includes('ed-window'),'Generic H5剥离编辑器界面');eq((await toolPage.evaluate(()=>window.__lastH5Export?.formats))?.join(','),'generic','本次实际导出Generic渠道');
   runs.push(await runSuite(toolPage,'工具版',path.join(out,'tool'),{record:true}));
   check(tool.errors.length===0,'工具版页面错误数0',tool.errors);check(toolRequests.length===0,'工具版网络失败数0',toolRequests);
-  const h5=await newPage(browser,{width:390,height:844});contexts.add(h5.context);const h5Requests=[];h5.page.on('requestfailed',r=>h5Requests.push({url:r.url(),error:r.failure()?.errorText}));await h5.page.goto(h5Url,{waitUntil:'load'});await waitGame(h5.page);await h5.page.waitForFunction(()=>window.__h5StageLayout);runs.push(await runSuite(h5.page,'实际导出Generic H5',path.join(out,'generic')));check(h5.errors.length===0,'实际导出Generic H5页面错误数0',h5.errors);check(h5Requests.length===0,'实际导出Generic H5网络失败数0',h5Requests);await h5.context.close();contexts.delete(h5.context);
+  const h5=await newPage(browser,{width:390,height:844});contexts.add(h5.context);const h5Requests=[];h5.page.on('requestfailed',r=>h5Requests.push({url:r.url(),error:r.failure()?.errorText}));await h5.page.clock.install();await h5.page.goto(h5Url,{waitUntil:'load'});await waitGame(h5.page);await h5.page.waitForFunction(()=>window.__h5StageLayout);runs.push(await runSuite(h5.page,'实际导出Generic H5',path.join(out,'generic')));check(h5.errors.length===0,'实际导出Generic H5页面错误数0',h5.errors);check(h5Requests.length===0,'实际导出Generic H5网络失败数0',h5Requests);await h5.context.close();contexts.delete(h5.context);
   stage('工具版与实际导出H5的reduced-motion回归');await reducedSuite(server.origin+'/index.html','工具版',path.join(out,'tool'));await reducedSuite(h5Url,'实际导出Generic H5',path.join(out,'generic'));
   const afterSha=crypto.createHash('sha256').update(await fs.readFile(path.join(ROOT,'index.html'))).digest('hex');eq(afterSha,buildSha,'整个回归使用同一份构建，未中途改写index.html');
   await writeJson(path.join(out,'build-and-export.json'),{buildSha,zip,h5Sha:crypto.createHash('sha256').update(h5Html).digest('hex'),h5Bytes:Buffer.byteLength(h5Html),runs,errors:{tool:tool.errors,h5:h5.errors},requests:{tool:toolRequests,h5:h5Requests}});

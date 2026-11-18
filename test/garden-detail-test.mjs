@@ -134,6 +134,73 @@ async function cursorTest(page,label) {
   check(Math.abs(released[4]-leaf.rot) < .075, `${label} 离开后叶片回到待机姿态`);
 }
 
+async function levelTwoCross(page,label) {
+  const center=await page.evaluate(() => {
+    Object.assign(__app.S,{growMs:1000,bloomMs:300,winDelay:6000});
+    __app.newGame('2');
+    const b=__app.boardLayout();
+    return {x:b.cx(1),y:b.cy(3)};
+  });
+  const p=await screenPoint(page,center);
+  // Observe the actual pointer-triggered animation, before the H5 end card.
+  await page.evaluate(() => {
+    window.gardenCrossFrames=[];
+    document.querySelector('#stage').addEventListener('pointerup',() => {
+      const end=performance.now()+1650;
+      function sample(){
+        const plants=__app.items.filter(i=>/^vine_(sprig|floret)_/.test(i.id));
+        window.gardenCrossFrames.push({count:plants.length,opening:plants.some(i=>i.op>0 && i.op<.98)});
+        if(performance.now()<end)requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    },{once:true});
+  });
+  await page.mouse.click(p.x,p.y);
+  await page.waitForFunction(() => window.gardenCrossFrames.length && __app.ST.vines[0] &&
+    performance.now()/1000 > __app.ST.vines[0].time+1.5);
+  const result=await page.evaluate(() => {
+    const {ST,L,items,A}=__app,b=__app.boardLayout(),k=b.k;
+    const vines=ST.vines.map((v,index)=>{
+      const dx=Math.sign(v.c2-v.c1),dy=Math.sign(v.r2-v.r1);
+      const dir=dx===1?'right':dx===-1?'left':dy===1?'down':'up';
+      const dist=Math.hypot((v.c2-v.c1)*b.cellW,(v.r2-v.r1)*b.cellH)/k;
+      const pos=it=>{
+        const x=(it.x-b.cx(v.c1))/k,y=(it.y-b.cy(v.r1))/k+12;
+        return {along:x*dx+y*dy,across:-x*dy+y*dx};
+      };
+      const tip=items.find(i=>i.id===`vine_tip_${index}`),tufts=items.filter(i=>i.id.startsWith(`vine_sprig_${index}_`));
+      const blooms=items.filter(i=>i.id.startsWith(`vine_floret_${index}_`));
+      const trim=[...tufts,...blooms];
+      return {dir,tip:tip?.asset, tipOnEnd:tip && Math.abs(pos(tip).along-dist)<45 && Math.abs(pos(tip).across)<15,
+        bothBanks:[-1,1].every(sign=>tufts.some(i=>sign*pos(i).across>3)),
+        tufts:tufts.length,blooms:blooms.length,
+        aligned:trim.every(i=>{const {along,across}=pos(i);return along>=-25 && along<=dist+25 && Math.abs(across)<60;}),
+        live:trim.every(i=>i.op>.99 && A[i.asset]?.c?.width>0 && (i.asset==='vine_meadow_flower'||/^vine_meadow_[ab]$/.test(i.asset)))};
+    });
+    const goals=L.flowers.map(f=>f.id),seed=items.find(i=>i.id==='seed_0'),round=A[seed?.asset];
+    const hub=!!seed && seed.asset==='vine_gold_joint' && round?.w===round?.h && Math.abs(seed.sx-seed.sy)<.001 &&
+      Math.hypot(seed.x-b.cx(1),seed.y-(b.cy(3)-12*k))<8*k;
+    const trimCount=items.filter(i=>/^vine_(sprig|floret)_/.test(i.id)).length;
+    let textHash=2166136261;
+    for(const ch of JSON.stringify(['4/4',48,'#22310d',{}]))textHash=Math.imul(textHash^ch.charCodeAt(0),16777619);
+    return {vines,hub,goals,bloomed:ST.bloomed,won:ST.status==='won',used:ST.used,
+      hud:items.find(i=>i.id==='flower_count')?.asset==='text_'+(textHash>>>0).toString(36),
+      visibleGoals:goals.filter(id=>items.some(i=>i.id===id+'_bloom'&&i.op===1)).length,
+      trimCount,growing:window.gardenCrossFrames.some(f=>f.opening && f.count>0 && f.count<trimCount)};
+  });
+  const {vines}=result;
+  check(result.won && result.used===1 && vines.length===4,`${label} 第2关(1,3)真实落种一次产生四向藤蔓并通关`);
+  check(new Set(vines.map(v=>v.dir)).size===4 && vines.every(v=>v.tip==='vine_tip_'+v.dir && v.tipOnEnd),`${label} 四个紧卷藤尖各自朝向对应分枝的远端`,vines);
+  check(result.hub,`${label} 四枝交点保留圆形金种子`);
+  check(vines.every(v=>v.tufts>=2 && v.bothBanks) && vines.some(v=>v.blooms>0),`${label} 四条分枝两侧均有草簇并可见小花`,vines);
+  check(vines.every(v=>v.live && v.aligned) && vines.reduce((n,v)=>n+v.tufts+v.blooms,0)===result.trimCount,`${label} 每个草簇和小花均属于对应分枝且位于藤边`,vines);
+  check(result.growing,`${label} 草簇和小花随生长过程逐步出现`);
+  check(result.goals.length===4 && result.bloomed.length===4 && result.goals.every(id=>result.bloomed.includes(id)) &&
+    result.visibleGoals===4 && result.hud,`${label} 装饰小花不计入目标，画面保留四朵目标花及4/4计数`);
+  await page.locator('#stage').screenshot({path:path.join(out,`${label}-level2-cross.png`)});
+  await writeJson(path.join(out,`${label}-level2-cross.json`),result);
+}
+
 async function play(page, label) {
   await waitGame(page);
   await page.mouse.move(0,0);
@@ -158,6 +225,7 @@ async function play(page, label) {
   check(['earth_grain','sap_streak','anther_dust','petal_flake'].every(type=>seen.some(k=>k.startsWith('fx_'+type))), `${label} 真正的落种、生长、开花帧均产生所需粒子`,seen);
   await cursorTest(page,label);
   await page.locator('#stage').screenshot({path:path.join(out,`${label}-garden.png`)});
+  await levelTwoCross(page,label);
 
   await page.emulateMedia({ reducedMotion:'reduce' });
   entry = await begin(page);
