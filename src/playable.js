@@ -10,7 +10,7 @@ const P=window.__PLAYABLE__||{},S={...P.settings,handImage:'',handShow:false,man
 const canvas=document.querySelector('#stage'),ctx=canvas.getContext('2d'),sfx=new Sfx();
 const AUTO={running:false,token:0,completed:0},HAND={image:null,visible:false};
 let L,ST,A={},items=[],hits=[],drag=null,lastAction=-Infinity,toastTimer;
-const UI={preview:null,hint:null,tap:null,winAt:0,endMode:false,waterMode:false,undoCount:0,hintCount:0,waterCount:0};
+const UI={playable:true,preview:null,hint:null,tap:null,winAt:0,endMode:false,waterMode:false,undoCount:0,hintCount:0,waterCount:0};
 const time=()=>performance.now()/1000,sleep=ms=>new Promise(r=>setTimeout(r,Math.max(0,ms)));
 const feedback=createFeedback(UI,time);
 const gardenLife=bindGardenLife(canvas,{env:()=>({L,S,layout:()=>boardLayout(L,S),items,ui:UI,blocked:false,automatic:AUTO.running}),position,clock:time});

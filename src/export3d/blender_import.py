@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""植物光路 · 3D 动画导入脚本（Blender 4.x / 5.x）
+"""花候图志 · 3D 动画导入脚本（Blender 4.x / 5.x）
 
 用法（任选其一）：
   1) Blender → Scripting → 打开本文件 → Run Script（本文件需与 scene.glb、scene3d.json 同目录）

@@ -32,7 +32,7 @@
         "r": 3
       }
     ],
-    "hintText": "Slide your finger to aim. Slide off the garden to cancel."
+    "hintText": "按住空格观察藤蔓的走向，松手播种。移出样地可取消。"
   },
   {
     "id": 3,
@@ -81,7 +81,7 @@
         "r": 4
       }
     ],
-    "hintText": "You have 2 seeds now — plant them both."
+    "hintText": "本页有两粒种子。先找一组同排或同列的花苞。"
   },
   {
     "id": 4,
@@ -130,7 +130,7 @@
         "r": 4
       }
     ],
-    "hintText": "Order matters — vines block each other."
+    "hintText": "两条藤相遇，后长的那条会停下。试着交换播种顺序。"
   },
   {
     "id": 5,
@@ -287,7 +287,7 @@
         "r": 0
       }
     ],
-    "hintText": "Nice! A hint always shows a right move."
+    "hintText": "需要线索时，用罗盘标出下一粒种子的落点。"
   },
   {
     "id": 8,
@@ -453,7 +453,7 @@
         "r": 4
       }
     ],
-    "hintText": "You have 3 seeds now — plant all three."
+    "hintText": "有三粒种子可用。先看看边缘有哪些花苞需要照顾。"
   },
   {
     "id": 11,
@@ -589,6 +589,6 @@
         "r": 3
       }
     ],
-    "hintText": "Nice! The can helps when seeds run short."
+    "hintText": "选择补水，再点一朵花苞，可让它单独开放。"
   }
 ]

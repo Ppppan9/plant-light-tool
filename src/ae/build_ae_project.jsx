@@ -1,10 +1,10 @@
-/*  build_ae_project.jsx — 植物光路 · After Effects 工程构建脚本
+/*  build_ae_project.jsx — 花候图志 · After Effects 工程构建脚本
  *  用法：After Effects > 文件 > 脚本 > 运行脚本文件… 选择本文件（与 timeline.json、assets/、audio/ 放在同一文件夹）。
  *  语法：ExtendScript（ES3），不依赖 JSON 内置对象；适用于 AE CC 2018 及以上。
- *  由“植物光路核玩工具”自动生成，请勿手改 timeline.json 的结构。
+ *  由“花候图志核玩工具”自动生成，请勿手改 timeline.json 的结构。
  */
 (function () {
-    var SCRIPT_NAME = "植物光路 AE 工程构建";
+    var SCRIPT_NAME = "花候图志 AE 工程构建";
 
     // ---------- 小工具 ----------
     function isArray(v) { return Object.prototype.toString.call(v) === "[object Array]"; }

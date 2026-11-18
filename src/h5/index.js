@@ -172,12 +172,12 @@ export function applyEditorDevicePreview(S, { onFit } = {}) {
   const cssW = Math.max(1, Math.round(DESIGN_W * gameScale));
   const cssH = Math.max(1, Math.round(DESIGN_H * gameScale));
   style.textContent = [
-    '#stageWrap.h5-device-preview{background:#0a0b0e!important}',
+    '#stageWrap.h5-device-preview{background:#d6ded8!important}',
     '#stageWrap.h5-device-preview #stage{',
     '  height:auto!important;width:' + cssW + 'px!important;max-width:none!important;',
     '  max-height:none!important;aspect-ratio:auto!important;',
-    '  border:0!important;border-radius:12px!important;',
-    '  box-shadow:0 0 0 2px #6a7384,0 14px 42px rgba(0,0,0,.55)!important;',
+    '  border:0!important;border-radius:2px!important;',
+    '  box-shadow:0 0 0 1px #657974,0 8px 26px #19363138!important;',
     '}',
   ].join('\n');
   stage.style.setProperty('width', cssW + 'px');
@@ -305,15 +305,15 @@ html.h5-playable,body.h5-playable{width:100vw!important;height:100vh!important;h
 #stage{display:block!important;position:relative!important;flex:none!important;
   max-width:100%!important;max-height:100%!important;border-radius:0!important;box-shadow:none!important;
   touch-action:none!important;object-fit:contain!important;aspect-ratio:9/20}
-#h5-cta{position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;align-items:center;justify-content:center;gap:10px;
+#h5-cta{position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;align-items:center;justify-content:center;gap:16px;
   padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  background:linear-gradient(transparent,rgba(0,0,0,.78));pointer-events:none;box-sizing:border-box}
-#h5-cta button{pointer-events:auto;border:none;border-radius:28px;padding:12px 28px;font:700 16px/1.2 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
-  color:#fff;background:linear-gradient(180deg,#f36c52,#dd3e36);box-shadow:0 6px 20px rgba(172,46,31,.35);cursor:pointer;-webkit-tap-highlight-color:transparent}
-#h5-cta button:active{transform:scale(.97)}
-html.h5-ended #h5-cta button{animation:h5pulse 1s ease-in-out infinite}@keyframes h5pulse{50%{transform:scale(1.08)}}
-#h5-cta .h5-name{color:#fff;font:600 13px/1.2 system-ui,sans-serif;text-shadow:0 1px 4px #000;max-width:36vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#h5-cta img.h5-icon{width:36px;height:36px;border-radius:8px;object-fit:cover;flex:none}
+  background:#f4f1e7;border-top:1px solid #bdbeac;pointer-events:none;box-sizing:border-box}
+#h5-cta button{pointer-events:auto;border:1px solid #91402e;border-radius:2px;padding:10px 17px;min-height:44px;max-width:53vw;overflow-wrap:anywhere;font:600 15px/1.3 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:#fffaf1;background:#994532;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#h5-cta button::after{content:'↗';padding-left:.7em}#h5-cta button:active{background:#733023}#h5-cta button:focus-visible{outline:2px solid #235355;outline-offset:3px}
+html.h5-ended #h5-cta{border-top:2px solid #994532}
+#h5-cta .h5-name{color:#183c40;font:600 17px/1.25 "Songti SC","Noto Serif CJK SC",serif;max-width:36vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#h5-cta img.h5-icon{width:36px;height:36px;border-radius:2px;object-fit:cover;flex:none}
 @media (max-height:500px){#h5-cta{padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px))}#h5-cta button{padding:8px 20px;font-size:14px}#h5-cta img.h5-icon{width:28px;height:28px}}
 </style>`;
 }
@@ -460,8 +460,8 @@ function channelHeadExtras(format, orientation, design) {
   return parts.join('\n');
 }
 function letterboxBg(settings) {
-  if (!settings || typeof settings !== 'object') return '#356f27';
-  return settings.bgColor || settings.bg || settings.stageBg || '#356f27';
+  const color=settings?.bgColor || settings?.bg || settings?.stageBg || settings?.bgBottom;
+  return /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(color) ? color : '#102f38';
 }
 
 /**
@@ -503,7 +503,8 @@ export function makePlayableHtml(baseHtml, opts = {}) {
   html = editOutsideScripts(html, (seg) => {
     seg = seg.replace(/<style id="h5-playable-css">[\s\S]*?<\/style>/gi, '');
     seg = seg.replace(/<meta[^>]+name=["'](viewport|ad\.orientation|ad\.size|h5\.device|h5\.design)["'][^>]*>/gi, '');
-    seg = seg.replace(/<title>[^<]*<\/title>/i, '<title>' + (payload.gameName || payload.toolId) + ' · H5试玩' + titleExtra + '</title>');
+    const title=String(payload.gameName||payload.toolId).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    seg = seg.replace(/<title>[^<]*<\/title>/i, () => '<title>' + title + ' · H5试玩' + titleExtra + '</title>');
     if (!injected && /<\/head>/i.test(seg)) { seg = seg.replace(/<\/head>/i, inject + '\n</head>'); injected = true; }
     return seg;
   });

@@ -1,5 +1,5 @@
 // Run after building: node scripts/capture_vine_detail.mjs [all|comparison|touch] [outDir]
-// The comparison uses the shipped v1.3 single file; the touch capture uses a newly exported H5.
+// Compare two stages in this build. The touch capture uses a newly exported H5.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -8,8 +8,8 @@ import { ROOT, applySettings, ensureArt, launch, newPage, nextDownload, saveData
 
 const mode = process.argv[2] || 'all';
 assert(['all', 'comparison', 'touch'].includes(mode));
-const out = path.resolve(process.argv[3] || path.join(ROOT, 'screenshots'));
 const scratch = await ensureArt('vine-detail');
+const out = path.resolve(process.argv[3] || scratch);
 const settings = {
   level: '10', recRes: '720x1600', bgMotion: false, manualHand: false, showTutorial: false,
   interactionMotion: true, showParticles: true, sfxMute: true, growMs: 1100, bloomMs: 750,
@@ -64,13 +64,7 @@ async function comparisonBoard(url, tag) {
   } finally { await context.close(); }
 }
 async function comparison() {
-  const base = await fs.mkdtemp(path.join(scratch, 'base-'));
-  await fs.writeFile(path.join(base, 'index.html'), execFileSync('git', ['show', '007a8c6:index.html'], { cwd: ROOT, maxBuffer: 16*1024*1024 }));
-  const legacy = await serve(base);
-  try {
-    await comparisonBoard(legacy.origin, 'v13');
-    await comparisonBoard(server.origin, 'v14');
-  } finally { await legacy.close(); await fs.rm(base, { recursive: true, force: true }); }
+  await comparisonBoard(server.origin, 'current');
   python(`
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
@@ -82,15 +76,10 @@ def font(size):
         except OSError: pass
     return ImageFont.load_default()
 w,h=440,242
-canvas=Image.new('RGB',(w*2+44,2*h+124),'#192b20'); draw=ImageDraw.Draw(canvas)
-for i,(tag,title) in enumerate([('v13','v1.3'),('v14','v1.4')]):
-    x=16+i*(w+12)
-    draw.text((x,8),title,font=font(24),fill='#f0f3de')
-    for j,(phase,box,label) in enumerate([('grow',(107,755,547,997),'01   /   GROWTH'),('settled',(160,757,600,999),'02   /   FULLY GROWN')]):
-        y=58+j*(h+38)
-        draw.text((x,y-19),label,font=font(12),fill='#cddec6')
-        with Image.open(src/f'{tag}-{phase}.png') as im:
-            canvas.paste(im.crop(box),(x,y))
+canvas=Image.new('RGB',(w*2+44,h+52),'#183f47'); draw=ImageDraw.Draw(canvas)
+for i,(phase,label) in enumerate([('grow','01  /  GROWTH'),('settled','02  /  FULLY GROWN')]):
+    x=16+i*(w+12); draw.text((x,10),label,font=font(16),fill='#f2e8cc')
+    with Image.open(src/f'current-{phase}.png') as im: canvas.paste(im.crop((107,755,547,997)),(x,37))
 canvas.save(dest,quality=94,subsampling=0,optimize=True)
 `, scratch, path.join(out, 'vine-comparison.jpg'));
 }

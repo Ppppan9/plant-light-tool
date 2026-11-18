@@ -1,5 +1,4 @@
-// Capture the real Canvas renderer, including the optional pre-polish backup.
-// Run after npm run build. This is visual evidence, not a reference-video match.
+// Capture the current Canvas renderer after npm run build.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {serve,launch,newPage,waitGame,applySettings,saveDataUrl,writeJson,ROOT} from '../test/helpers.mjs';
@@ -10,14 +9,10 @@ const settings={sfxMute:true,manualHand:false,bgMotion:false,showParticles:false
 async function canvas(page,name){await saveDataUrl(await page.locator('#stage').evaluate(c=>c.toDataURL('image/png')),path.join(out,name+'.png'));}
 async function solve(page){for(let n=0;n<10;n++){const move=await page.evaluate(()=>__app.ST.status==='playing'?__app.core.solve(__app.L,__app.ST)?.[0]:null);if(!move)break;await page.evaluate(p=>__app.plant(p.c,p.r),move);await page.waitForTimeout(450);}await page.waitForTimeout(1050);}
 try{
-  const old=path.join(out,'before.html');
-  if(await fs.stat(old).catch(()=>null)){
-    const {page,context}=await newPage(browser);await page.goto(server.origin+'/test/artifacts/art-polish/before.html');await waitGame(page);await applySettings(page,{...settings,level:'2'});await page.evaluate(()=>__app.newGame('2'));await page.waitForTimeout(180);await canvas(page,'before-buds-native');await solve(page);await canvas(page,'before-bloom-native');await context.close();
-  }
   const {page,errors}=await newPage(browser);await page.goto(server.origin);await waitGame(page);await applySettings(page,settings);
   for(const lv of ['2','3','10','12']){
     await page.selectOption('#levelSel',lv);await page.waitForTimeout(180);
-    if(lv==='2'){await canvas(page,'after-buds-native');await page.screenshot({path:path.join(ROOT,'screenshots/tool-polished.png')});}
+    if(lv==='2'){await canvas(page,'after-buds-native');await page.screenshot({path:path.join(out,'tool.png')});}
     await solve(page);await canvas(page,`level-${lv}-native`);
     if(lv==='2')await canvas(page,'after-bloom-native');
     report.push(await page.evaluate(()=>({level:__app.L.id,status:__app.ST.status,flowers:__app.ST.bloomed.length,items:__app.items.length,missing:__app.items.filter(i=>!__app.A[i.asset]).map(i=>i.asset),leavesUniform:__app.items.filter(i=>i.id.startsWith('vine_leaf_')).every(i=>i.sx===i.sy)})));

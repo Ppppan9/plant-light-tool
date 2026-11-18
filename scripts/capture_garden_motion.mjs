@@ -10,7 +10,7 @@ import {
 } from '../test/helpers.mjs';
 
 const scratch = await ensureArt('garden-motion-demo');
-const output = path.resolve(process.argv[2] || path.join(ROOT, 'screenshots/garden-motion.webp'));
+const output = path.resolve(process.argv[2] || path.join(scratch, 'garden-motion.webp'));
 const server = await serve();
 const browser = await launch();
 try {

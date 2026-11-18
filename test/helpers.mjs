@@ -25,6 +25,23 @@ export async function ensureArt(kind) { const p=path.join(ART,kind); await fsp.m
 export const readJson = async p => JSON.parse(await fsp.readFile(p,'utf8'));
 export async function writeJson(p,obj) { await fsp.mkdir(path.dirname(p),{recursive:true}); await fsp.writeFile(p,JSON.stringify(obj,null,2)); }
 export async function saveDataUrl(url,p) { await fsp.mkdir(path.dirname(p),{recursive:true}); await fsp.writeFile(p,Buffer.from(url.slice(url.indexOf(',')+1),'base64')); }
+// Read what Canvas actually painted for a HUD item without assuming a theme,
+// font, asset name or palette. Weak keys preserve the renderer's cache lifetime.
+export async function observeHudText(page) {
+  await page.addInitScript(() => {
+    const textByCanvas = new WeakMap();
+    const prototype = CanvasRenderingContext2D.prototype, fillText = prototype.fillText;
+    prototype.fillText = function(text, ...args) {
+      const result = fillText.call(this, text, ...args);
+      textByCanvas.set(this.canvas, String(text));
+      return result;
+    };
+    window.readPaintedHudText = id => {
+      const drawn = window.__app.items.find(it => it.id === id && it.op > 0);
+      return textByCanvas.get(window.__app.A[drawn?.asset]?.c);
+    };
+  });
+}
 export async function unzip(p,dest) { await fsp.rm(dest,{force:true,recursive:true}); await fsp.mkdir(dest,{recursive:true}); execFileSync('unzip',['-q','-o',p,'-d',dest]); return dest; }
 export async function serve(root=ROOT) {
   const server=http.createServer(async(req,res)=>{ try { const u=new URL(req.url,'http://localhost'); if(u.pathname==='/favicon.ico'){res.writeHead(204);res.end();return;} let rel=decodeURIComponent(u.pathname);if(rel.endsWith('/'))rel+='index.html';const p=path.resolve(root,'.'+rel);if(p!==root&&!p.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const st=await fsp.stat(p).catch(()=>null);if(!st?.isFile()){res.writeHead(404);res.end('not found');return;}res.writeHead(200,{'content-type':MIME[path.extname(p)]||'application/octet-stream','cache-control':'no-store','access-control-allow-origin':'*'});fs.createReadStream(p).pipe(res);}catch(e){res.writeHead(500);res.end(e.message);} });

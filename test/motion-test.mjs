@@ -3,15 +3,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {ROOT,serve,launch,newPage,waitGame,applySettings,nextDownload,unzip,saveDataUrl,check,eq,near,summary,stage,ensureArt,writeJson} from './helpers.mjs';
+import {ROOT,serve,launch,newPage,waitGame,observeHudText,applySettings,nextDownload,unzip,saveDataUrl,check,eq,near,summary,stage,ensureArt,writeJson} from './helpers.mjs';
 
 const out=await ensureArt('motion'),server=await serve(),browser=await launch();
 const contexts=new Set(),runs=[];
 const BASE={level:'12',recRes:'720x1600',sfxMute:true,manualHand:false,hideCursor:false,autoRec:false,autoStop:false,autoNext:false,endCard:false,unlockBoosters:true,undoCount:8,hintCount:8,waterCount:8,showTutorial:false,bgMotion:false,showParticles:true,showPreview:true,interactionMotion:true,growMs:600,bloomMs:350,winDelay:3500,h5Format:'generic',h5AutoPlay:false,h5Device:'adaptive',h5Orientation:1,h5StoreUrl:'https://example.com/plantlight-motion',h5MaxMb:5};
 const branchIndex=id=>{const m=/^vine_(?:(?:leaf|tip|stem|sprig|floret)_)?(\d+)(?:_|$)/.exec(id);return m?+m[1]:null;};
 const eventFx=it=>/^fx_/.test(it.id)||/^(?:fx_watering_can|fx_water_drop|fx_water_splash|fx_pollen|fx_growth_glow|fx_bloom_halo)$/.test(it.asset);
-const hash=s=>{let n=2166136261;for(const c of String(s)){n^=c.charCodeAt(0);n=Math.imul(n,16777619);}return(n>>>0).toString(36);};
-const countAsset=(n,total)=>'text_'+hash(JSON.stringify([`${n}/${total}`,48,'#22310d',{}]));
 async function frames(page,n=2){await page.evaluate(n=>new Promise(resolve=>{const next=()=>n--?requestAnimationFrame(next):resolve();requestAnimationFrame(next);}),n);}
 // The installed Playwright clock runs normally except during these short
 // samples. Pause before the action, so slow CDP or capture never ages it.
@@ -25,7 +23,7 @@ async function xy(page,x,y){const b=await page.locator('#stage').boundingBox();i
 async function cellXY(page,c,r){const p=await page.evaluate(({c,r})=>{const b=__app.boardLayout();return{x:b.cx(c),y:b.cy(r)};},{c,r});return xy(page,p.x,p.y);}
 async function clickCell(page,c,r){const p=await cellXY(page,c,r);await page.mouse.click(p.x,p.y);await frames(page);}
 async function clickHit(page,id){const p=await xy(page,...({undo:[118,1484],hint:[280,1484],water:[442,1484],reset:[646,145]})[id]);await page.mouse.click(p.x,p.y);await frames(page);}
-async function read(page){return page.evaluate(()=>({time:performance.now()/1000,enteredAt:__app.UI.enteredAt,brushes:structuredClone(__app.UI.brushes||{}),used:__app.ST.used,status:__app.ST.status,moves:structuredClone(__app.ST.moves),vines:structuredClone(__app.ST.vines),bloomed:[...__app.ST.bloomed],bloomTimes:{...__app.ST.bloomTimes},flowers:structuredClone(__app.L.flowers),feedback:structuredClone(__app.UI.feedback),pressed:structuredClone(__app.UI.pressed),waterMode:__app.UI.waterMode,waterCount:__app.UI.waterCount,items:__app.items.map(i=>({...i})),missing:__app.items.filter(i=>!__app.A[i.asset]||!__app.A[i.asset].c?.width||!__app.A[i.asset].c?.height).map(i=>({id:i.id,asset:i.asset}))}));}
+async function read(page){return page.evaluate(()=>({time:performance.now()/1000,paintedFlowerCount:window.readPaintedHudText?.('flower_count'),enteredAt:__app.UI.enteredAt,brushes:structuredClone(__app.UI.brushes||{}),used:__app.ST.used,status:__app.ST.status,moves:structuredClone(__app.ST.moves),vines:structuredClone(__app.ST.vines),bloomed:[...__app.ST.bloomed],bloomTimes:{...__app.ST.bloomTimes},flowers:structuredClone(__app.L.flowers),feedback:structuredClone(__app.UI.feedback),pressed:structuredClone(__app.UI.pressed),waterMode:__app.UI.waterMode,waterCount:__app.UI.waterCount,items:__app.items.map(i=>({...i})),missing:__app.items.filter(i=>!__app.A[i.asset]||!__app.A[i.asset].c?.width||!__app.A[i.asset].c?.height).map(i=>({id:i.id,asset:i.asset}))}));}
 async function shot(page,dir,name){await saveDataUrl(await page.locator('#stage').evaluate(c=>c.toDataURL('image/png')),path.join(dir,name+'-canvas.png'));await page.locator('#stage').screenshot({path:path.join(dir,name+'.png')});}
 async function startDemo(page){await page.evaluate(()=>{const c=document.querySelector('#stage');if(!c.captureStream||typeof MediaRecorder!=='function')return;const mime=['video/webm;codecs=vp9','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));if(!mime)return;const stream=c.captureStream(30),rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000});window.__motionDemo={rec,stream,chunks:[]};rec.ondataavailable=e=>{if(e.data.size)__motionDemo.chunks.push(e.data);};rec.start(200);});}
 async function stopDemo(page,dir){const url=await page.evaluate(()=>new Promise(resolve=>{const d=window.__motionDemo;if(!d||d.rec.state==='inactive')return resolve(null);d.rec.onstop=()=>{for(const t of d.stream.getTracks())t.stop();const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(new Blob(d.chunks,{type:d.rec.mimeType}));};d.rec.stop();}));if(url)await saveDataUrl(url,path.join(dir,'interaction-demo.webm'));}
@@ -80,7 +78,7 @@ async function runSuite(page,label,dir,{record=false}={}){
   eq(invalid.used,0,label+' 花苞非法点击不耗种');check(invalid.feedback.some(e=>e.kind==='invalid'&&e.c===flower.c&&e.r===flower.r),label+' 非法点击保留目标格反馈');
   check(invalid.items.some(i=>/^fx_invalid_/.test(i.id)&&i.asset==='fx_focus_invalid'),label+' 非法落点可见焦点');await shot(page,dir,'invalid');
   await reset(page,'2',{growMs:1800});const beforePlant=await take('before-plant'),zeroAsset=beforePlant.items.find(i=>i.id==='flower_count')?.asset;
-  eq(zeroAsset,countAsset(0,beforePlant.flowers.length),label+' 初始 flower_count 确为0/总数贴图');
+  eq(beforePlant.paintedFlowerCount,`0/${beforePlant.flowers.length}`,label+' 初始 flower_count 确为0/总数贴图');
   const solution=await page.evaluate(()=>__app.core.solve(__app.L,__app.ST)[0]);await clickCell(page,solution.c,solution.r);const planted=await take('plant-immediate');
   eq(planted.used,1,label+' 真实松手落下一颗种子');check(planted.feedback.some(e=>e.kind==='plant'&&e.c===solution.c&&e.r===solution.r),label+' 落种发出 plant feedback');
   eq(planted.bloomed.length,planted.flowers.length,label+' 逻辑层已即时记录将开放花朵');
@@ -88,18 +86,25 @@ async function runSuite(page,label,dir,{record=false}={}){
   eq(planted.items.find(i=>i.id==='flower_count')?.asset,zeroAsset,label+' 藤未到时 FLOWERS 贴图保持0');
   await page.waitForTimeout(150);const landing=await take('seed-landing');check(landing.items.some(i=>/^fx_plant_.*_crumb_/.test(i.id)),label+' 种子落地有局部土粒反馈');await shot(page,dir,'seed-landing');
   const remaining=Math.max(0,Math.max(...Object.values(planted.bloomTimes))+.55-(await read(page)).time);await page.waitForTimeout(remaining*1000);await frames(page);const full=await take('full-bloom');
-  const fullAsset=full.items.find(i=>i.id==='flower_count')?.asset;check(fullAsset!==zeroAsset,label+' 开花后 FLOWERS 贴图更新');eq(fullAsset,countAsset(full.flowers.length,full.flowers.length),label+' 满开flower_count为总数/总数');
+  const fullAsset=full.items.find(i=>i.id==='flower_count')?.asset;check(fullAsset!==zeroAsset,label+' 开花后 FLOWERS 贴图更新');eq(full.paintedFlowerCount,`${full.flowers.length}/${full.flowers.length}`,label+' 满开flower_count为总数/总数');
   eq(full.items.filter(i=>/_bloom$/.test(i.id)).length,full.flowers.length,label+' 每株花都真实呈现全开头部');await shot(page,dir,'full-bloom');
 
   stage(label+' · 浇水动作与逻辑即时 / 演出延迟');
   await reset(page);await clickHit(page,'water');const waterReady=await take('water-selected');eq(waterReady.waterMode,true,label+' 道具点击选择浇水模式');
   check(waterReady.items.some(i=>i.id==='booster_water_selected'),label+' 浇水道具有选择边框');
-  const target=waterReady.flowers.find(f=>f.color==='blue')||waterReady.flowers[0];await clickCell(page,target.c,target.r);const watered=await take('water-immediate'),event=[...watered.feedback].reverse().find(e=>e.kind==='water');
+  const target=waterReady.flowers.find(f=>f.color==='blue')||waterReady.flowers[0];
+  const waterPoint=await cellXY(page,target.c,target.r);
+  await pauseBeforeAction(page);
+  await page.mouse.click(waterPoint.x,waterPoint.y);await page.clock.runFor(32);
+  const watered=await take('water-immediate'),event=[...watered.feedback].reverse().find(e=>e.kind==='water');
   check(!!event,label+' 浇水生成 water 事件');eq(watered.used,0,label+' 浇水不耗种');eq(watered.vines.length,0,label+' 浇水不生藤');eq(watered.bloomed.length,1,label+' 浇水逻辑即时只开目标一朵');eq(watered.bloomed[0],target.id,label+' 浇水逻辑命中目标花');eq(watered.waterCount,waterReady.waterCount-1,label+' 浇水次数只扣一次');eq(watered.waterMode,false,label+' 使用后退出浇水模式');
   near(watered.bloomTimes[target.id]-event?.time,.28,.025,label+' bloomTimes延后约280ms');
   check(watered.bloomTimes[target.id]>watered.time,label+' 逻辑更新早于视觉开花时刻');
   check(watered.items.some(i=>/^fx_water_.*_can$/.test(i.id)&&i.asset==='fx_watering_can'),label+' 浇水事件存在独立水壶精灵');
-  await page.waitForTimeout(205);const pouring=await take('water-pouring');check(pouring.items.some(i=>/^fx_water_.*_drop_/.test(i.id)&&i.asset==='fx_water_drop'),label+' 浇水中存在独立水滴');check(pouring.items.some(i=>/^fx_water_.*_can$/.test(i.id)),label+' 水滴出现时水壶仍可见');await shot(page,dir,'watering');
+  await page.clock.runFor(208);const pouring=await take('water-pouring');check(pouring.items.some(i=>/^fx_water_.*_drop_/.test(i.id)&&i.asset==='fx_water_drop'),label+' 浇水中存在独立水滴');check(pouring.items.some(i=>/^fx_water_.*_can$/.test(i.id)),label+' 水滴出现时水壶仍可见');
+  await saveDataUrl(await page.locator('#stage').evaluate(canvas=>canvas.toDataURL('image/png')),path.join(dir,'watering-canvas.png'));
+  await page.clock.resume();
+  await page.locator('#stage').screenshot({path:path.join(dir,'watering.png')});
   await page.waitForTimeout(2100);const cleaned=await take('water-cleaned');eq(cleaned.feedback.length,0,label+' 两秒后反馈事件已清理');eq(cleaned.items.filter(eventFx).length,0,label+' 演出结束无残留瞬态fx');
 
   // A slow bloom gives real mouse input the same generous sampling window on busy machines.
@@ -173,14 +178,14 @@ let toolPage,toolContext;
 try{
   const build=await fs.readFile(path.join(ROOT,'index.html'));const buildSha=crypto.createHash('sha256').update(build).digest('hex');
   const tool=await newPage(browser,{width:1440,height:1100});toolPage=tool.page;toolContext=tool.context;contexts.add(toolContext);const toolRequests=[];toolPage.on('requestfailed',r=>toolRequests.push({url:r.url(),error:r.failure()?.errorText}));
-  await toolPage.clock.install();await toolPage.goto(server.origin+'/index.html',{waitUntil:'load'});await waitGame(toolPage);await applySettings(toolPage,BASE);await reset(toolPage);
+  await toolPage.clock.install();await observeHudText(toolPage);await toolPage.goto(server.origin+'/index.html',{waitUntil:'load'});await waitGame(toolPage);await applySettings(toolPage,BASE);await reset(toolPage);
   stage('从工具实际导出本次构建的 Generic H5 ZIP');
   const zip=await nextDownload(toolPage,()=>toolPage.evaluate(()=>__app.action('_exportH5')),out),unpacked=path.join(out,'h5-unzipped');await unzip(zip,unpacked);
   const h5Path=path.join(unpacked,'generic','index.html'),h5Html=await fs.readFile(h5Path,'utf8'),h5Url=server.origin+'/'+path.relative(ROOT,h5Path).split(path.sep).join('/');
   check(h5Html.includes('window.__PLAYABLE__='),'实际导出ZIP含Generic可玩配置');check(!h5Html.includes('ed-window'),'Generic H5剥离编辑器界面');eq((await toolPage.evaluate(()=>window.__lastH5Export?.formats))?.join(','),'generic','本次实际导出Generic渠道');
   runs.push(await runSuite(toolPage,'工具版',path.join(out,'tool'),{record:true}));
   check(tool.errors.length===0,'工具版页面错误数0',tool.errors);check(toolRequests.length===0,'工具版网络失败数0',toolRequests);
-  const h5=await newPage(browser,{width:390,height:844});contexts.add(h5.context);const h5Requests=[];h5.page.on('requestfailed',r=>h5Requests.push({url:r.url(),error:r.failure()?.errorText}));await h5.page.clock.install();await h5.page.goto(h5Url,{waitUntil:'load'});await waitGame(h5.page);await h5.page.waitForFunction(()=>window.__h5StageLayout);runs.push(await runSuite(h5.page,'实际导出Generic H5',path.join(out,'generic')));check(h5.errors.length===0,'实际导出Generic H5页面错误数0',h5.errors);check(h5Requests.length===0,'实际导出Generic H5网络失败数0',h5Requests);await h5.context.close();contexts.delete(h5.context);
+  const h5=await newPage(browser,{width:390,height:844});contexts.add(h5.context);const h5Requests=[];h5.page.on('requestfailed',r=>h5Requests.push({url:r.url(),error:r.failure()?.errorText}));await h5.page.clock.install();await observeHudText(h5.page);await h5.page.goto(h5Url,{waitUntil:'load'});await waitGame(h5.page);await h5.page.waitForFunction(()=>window.__h5StageLayout);runs.push(await runSuite(h5.page,'实际导出Generic H5',path.join(out,'generic')));check(h5.errors.length===0,'实际导出Generic H5页面错误数0',h5.errors);check(h5Requests.length===0,'实际导出Generic H5网络失败数0',h5Requests);await h5.context.close();contexts.delete(h5.context);
   stage('工具版与实际导出H5的reduced-motion回归');await reducedSuite(server.origin+'/index.html','工具版',path.join(out,'tool'));await reducedSuite(h5Url,'实际导出Generic H5',path.join(out,'generic'));
   const afterSha=crypto.createHash('sha256').update(await fs.readFile(path.join(ROOT,'index.html'))).digest('hex');eq(afterSha,buildSha,'整个回归使用同一份构建，未中途改写index.html');
   await writeJson(path.join(out,'build-and-export.json'),{buildSha,zip,h5Sha:crypto.createHash('sha256').update(h5Html).digest('hex'),h5Bytes:Buffer.byteLength(h5Html),runs,errors:{tool:tool.errors,h5:h5.errors},requests:{tool:toolRequests,h5:h5Requests}});

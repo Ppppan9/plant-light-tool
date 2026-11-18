@@ -20,19 +20,18 @@
 - `src/art-assets/polished/`：PNG 源与内嵌运行使用的 WebP；`manifest.json` 记录锚点、有效像素范围和字节数。
 - `src/botanical.js`：连续藤蔓着色、稳定分段、独立叶片与卷须。
 - `src/interaction-fx.js`：原生精灵动效与道具演出；`src/feedback.js`：工具与 H5 共用的有界瞬态反馈。
-- `scripts/capture_art_polish.mjs`：实际浏览器中采集第 2、3、10、12 关与生长过程；若存在上一版备份，则同时采集对照。
+- `scripts/capture_art_polish.mjs`：实际浏览器中采集当前构建的第 2、3、10、12 关与生长过程。
 
 WebP 质量为 95，透明通道与 PNG 完全一致；14 件素材四边 alpha 均为零，无切边。检查见 `ref/analysis/polished/asset-qa.json`。这套新建植物遵循参考的软质休闲游戏美术方向，不作为与原片逐像素一致的证明。
 
 ## 视觉证据
 
-- `screenshots/detail-pass-comparison.jpg` 为 v1.2 的植物细节对照图。
-- `screenshots/detail-preview.png`、`detail-bloom.png`、`detail-water.png` 分别展示按压瞄准、开花与浇水。`screenshots/tool-polished.png` 展示工作台布局。
+- v1.2 曾制作瞄准、开花、浇水与工作台的截图。v2 已将旧展示图退役。
 - `test/artifacts/art-polish/level-{2,3,10,12}-native.png`：稀疏与密集关卡。
 - `test/artifacts/art-polish/growth-{early,middle,complete}.png`：生长过程。
 - `test/artifacts/art-polish/scene-report.json`：真实通关、素材引用及叶片等比记录。
 - `test/artifacts/motion/`：工具与实际导出 H5 的按压、浇水、撤销、完整开花、减少动态效果及真实演示证据。
 
-`test/artifacts/` 为本地测试输出，`ref/analysis/` 为本地制作记录。仓库内保留可运行的代码、素材与精选截图。
+`test/artifacts/` 为本地测试输出，`ref/analysis/` 为本地制作记录。
 
 导出与交互回归的最终结果见 `PROGRESS.md`。3D 动画包仍采用同源 2.5D 图层结构；新建植物模型的程序化源另行提供。

@@ -1,4 +1,4 @@
-// 植物光路 · 3D 动画导出（浏览器内生成真实 glTF + FBX）
+// 花候图志 · 3D 动画导出（浏览器内生成真实 glTF + FBX）
 // 复用 AE 逐帧时间轴：每个 AE 图层 → 一块带贴图的平面，按元素类别放到不同景深，
 // 形成一台可环绕观看的 2.5D 花园立体景箱；glTF/FBX 内含逐帧 TRS 动画与相机。
 import * as THREE from 'three';
@@ -110,9 +110,10 @@ export async function export3DAnimation({ rec, S, recorder, canvas } = {}) {
 
   const imageAssets = TL.assets.filter(a => /\.png$/i.test(a.file));
   const used = new Set();
+  const backdropColor = rec.S.bgBottom || '#102f38';
   const scene = new THREE.Scene();
   scene.name = 'PlantLight_3D';
-  scene.background = new THREE.Color('#386a2a');
+  scene.background = new THREE.Color(backdropColor);
 
   const camera = new THREE.PerspectiveCamera(FOV, CW / CH, 0.05, 120);
   camera.name = 'Camera_PlantLight';
@@ -132,7 +133,7 @@ export async function export3DAnimation({ rec, S, recorder, canvas } = {}) {
   // 远景底板：相机在 Blender 里稍微环绕时不至于看到虚空。
   const backdrop = new THREE.Mesh(
     new THREE.PlaneGeometry(22, 42),
-    new THREE.MeshBasicMaterial({ color: '#386a2a', depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: backdropColor, depthWrite: false }),
   );
   backdrop.name = 'Stage_Backdrop';
   backdrop.position.set(0, 0, -3.1);
@@ -327,7 +328,7 @@ export async function export3DAnimation({ rec, S, recorder, canvas } = {}) {
       note: '各平面按景深做了投影补偿；在 z=0 处画面与网页 720×1600 逐像素对齐',
     },
     world: {
-      background: '#386a2a',
+      background: backdropColor,
       ambient: { sky: '#ffdca8', ground: '#16202a', intensity: 0.75 },
       sun: { color: '#ffe6bd', intensity: 1.6, position: [3.4, 6.2, 9.5] },
     },

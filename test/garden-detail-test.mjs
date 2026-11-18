@@ -1,7 +1,7 @@
 // Verify the shared emitters at fixed timestamps, then play both shipped entries.
 import path from 'node:path';
 import { composeSoilParticles, composeGrowthParticles, composeBloomParticles } from '../src/garden-particles.js';
-import { ROOT, serve, launch, newPage, waitGame, nextDownload, unzip, check, eq, stage, summary, ensureArt, writeJson } from './helpers.mjs';
+import { ROOT, serve, launch, newPage, waitGame, observeHudText, nextDownload, unzip, check, eq, stage, summary, ensureArt, writeJson } from './helpers.mjs';
 
 const out = await ensureArt('garden-detail');
 const item = (id, asset, x, y, sx, sy, rot, op, z) => ({ id, asset, x, y, sx, sy, rot, op, z });
@@ -76,22 +76,24 @@ async function screenPoint(page, p) {
   return {x:b.x + p.x * b.width / 720, y:b.y + p.y * b.height / 1600};
 }
 
-// Starting in a requestAnimationFrame keeps the sample inside the first visual
-// frame even when the browser has been busy constructing or exporting assets.
+// Sample a real rendered entry frame while keeping the pointer on this same
+// timeline until it is released. Test setup and IPC may take any wall time.
 async function begin(page, overrides = {}) {
-  return page.evaluate(({options, overrides}) => new Promise(resolve => requestAnimationFrame(() => {
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60000));
+  await page.evaluate(({options, overrides}) => {
     Object.assign(__app.S, options, overrides);
     __app.newGame('10');
-    requestAnimationFrame(() => {
-      const layout = __app.boardLayout(), move = __app.core.solve(__app.L, __app.ST)[0];
-      const beds = __app.items.filter(i => i.id.startsWith('soil_'));
-      const buds = __app.items.filter(i => i.id.endsWith('_bud'));
-      const invisible = buds.filter(i => i.op < .05);
-      const orphanShadows = invisible.filter(i => (__app.items.find(j => j.id === i.id.slice(0,-4) + '_shadow')?.op || 0) > .11);
-      resolve({ x:layout.cx(move.c), y:layout.cy(move.r), invisible:invisible.length, orphanShadows:orphanShadows.length,
-        entering:beds.some(i=>i.op<.99), flower:__app.L.flowers[0].id });
-    });
-  })), {options,overrides});
+  }, {options, overrides});
+  await page.clock.runFor(32);
+  return page.evaluate(() => {
+    const layout = __app.boardLayout(), move = __app.core.solve(__app.L, __app.ST)[0];
+    const beds = __app.items.filter(i => i.id.startsWith('soil_'));
+    const buds = __app.items.filter(i => i.id.endsWith('_bud'));
+    const invisible = buds.filter(i => i.op < .05);
+    const orphanShadows = invisible.filter(i => (__app.items.find(j => j.id === i.id.slice(0,-4) + '_shadow')?.op || 0) > .11);
+    return { x:layout.cx(move.c), y:layout.cy(move.r), invisible:invisible.length, orphanShadows:orphanShadows.length,
+      entering:beds.some(i=>i.op<.99), flower:__app.L.flowers[0].id };
+  });
 }
 
 async function startParticleObserver(page) {
@@ -181,10 +183,8 @@ async function levelTwoCross(page,label) {
     const hub=!!seed && seed.asset==='vine_gold_joint' && round?.w===round?.h && Math.abs(seed.sx-seed.sy)<.001 &&
       Math.hypot(seed.x-b.cx(1),seed.y-(b.cy(3)-12*k))<8*k;
     const trimCount=items.filter(i=>/^vine_(sprig|floret)_/.test(i.id)).length;
-    let textHash=2166136261;
-    for(const ch of JSON.stringify(['4/4',48,'#22310d',{}]))textHash=Math.imul(textHash^ch.charCodeAt(0),16777619);
     return {vines,hub,goals,bloomed:ST.bloomed,won:ST.status==='won',used:ST.used,
-      hud:items.find(i=>i.id==='flower_count')?.asset==='text_'+(textHash>>>0).toString(36),
+      hud:window.readPaintedHudText('flower_count')==='4/4',
       visibleGoals:goals.filter(id=>items.some(i=>i.id===id+'_bloom'&&i.op===1)).length,
       trimCount,growing:window.gardenCrossFrames.some(f=>f.opening && f.count>0 && f.count<trimCount)};
   });
@@ -220,6 +220,7 @@ async function play(page, label) {
   const down = await page.evaluate(() => ({used:__app.ST.used, c:__app.UI.pressed?.c, entering:window.gardenTapDuringEntrance}));
   check(down.entering && down.used === 0 && Number.isInteger(down.c), `${label} 入场中可按下并保持瞄准`,down);
   await page.mouse.up();
+  await page.clock.resume();
   eq(await page.evaluate(()=>__app.ST.used),1,`${label} 第一次松手立即成功落种`);
   const seen = await page.evaluate(()=>window.gardenSample);
   check(['earth_grain','sap_streak','anther_dust','petal_flake'].every(type=>seen.some(k=>k.startsWith('fx_'+type))), `${label} 真正的落种、生长、开花帧均产生所需粒子`,seen);
@@ -229,6 +230,7 @@ async function play(page, label) {
 
   await page.emulateMedia({ reducedMotion:'reduce' });
   entry = await begin(page);
+  await page.clock.resume();
   check(!entry.entering && entry.invisible === 0, `${label} 系统减少动效让第一帧完整呈现棋盘和花苞`);
   const budId = `${entry.flower}_bud`;
   const standing = await pose(page,budId);
@@ -249,6 +251,7 @@ const server = await serve(), browser = await launch();
 try {
   stage('核对工具及其实际导出的 Generic H5');
   const tool=await newPage(browser);
+  await tool.page.clock.install(); await observeHudText(tool.page);
   await tool.page.goto(server.origin); await waitGame(tool.page);
   await tool.page.evaluate(settings=>Object.assign(__app.S,settings),options);
   const zip=await nextDownload(tool.page,()=>tool.page.evaluate(()=>__app.action('_exportH5')),out);
@@ -257,6 +260,7 @@ try {
   check(!tool.errors.length,'工具运行时无浏览器错误',tool.errors);
   const h5=await newPage(browser,{width:390,height:844});
   const h5Path=path.relative(ROOT,path.join(archive,'generic','index.html')).split(path.sep).join('/');
+  await h5.page.clock.install(); await observeHudText(h5.page);
   await h5.page.goto(server.origin+'/'+h5Path);await waitGame(h5.page);
   eq(await h5.page.evaluate(()=>__app.S.particleDensity),'high','H5 导出保留选定粒子强度');
   await play(h5.page,'generic');

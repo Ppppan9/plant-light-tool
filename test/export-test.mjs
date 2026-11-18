@@ -27,6 +27,9 @@ try {
   check(fs.existsSync(path.join(projectDir,'audio/mix.wav')),'包含混合音轨');check(TL.comps.some(c=>c.id==='sfx'&&c.layers.length>0),'包含逐事件音效预合成');
   if(mode==='ae') {
     stage('AE：精简/逐帧采样与 JSX 工程构建');
+    check(main.layers.some(layer=>layer.src?.asset==='atlas_icon_flower' && layer.label===15)
+      && main.layers.some(layer=>layer.src?.asset==='decor_atlas_fern' && layer.label===12),
+      'AE 工程以不同标签区分花录计数与标本装饰');
     const effects=TL.assets.filter(asset=>asset.id.startsWith('fx_'));
     check(effects.length>0 && effects.every(asset=>asset.folder==='fx') && TL.folders.some(folder=>folder.id==='fx' && folder.parent==='img'),'花园特效归入独立素材目录');
     const handVisible=await page.evaluate(()=>{
@@ -38,13 +41,13 @@ try {
     });
     const handLayers=main.layers.filter(layer=>layer.name==='手指'||layer.name.startsWith('手指 #'));
     check(handVisible.some(frame=>frame.drawn) && !handVisible.at(-1).drawn && handVisible.every(frame=>frame.drawn===handLayers.some(layer=>layer.in<=frame.time && frame.time<layer.out)),'导出手指逐采样帧与实际显隐一致');
-    eq(TL.meta.sampling,'reduce','默认精简关键帧');eq(TL.meta.names,'zh','中文命名');eq(main.name,'主合成_植物光路','主合成命名');
+    eq(TL.meta.sampling,'reduce','默认精简关键帧');eq(TL.meta.names,'zh','中文命名');eq(main.name,'主合成_花候图志','主合成命名');
     check(main.layers.some(l=>l.name==='手指'),'固定手指层名');check(main.layers.some(l=>l.name==='背景'),'固定背景层名');
     const mix=main.layers.find(l=>l.src?.asset==='mix');eq(mix?.audioEnabled,false,'同时导出混音与事件时混音静音防止重叠');
     const mock=runJsxMock(projectDir,TL);await writeJson(path.join(outDir,'jsx-mock.json'),mock);
     check(mock.alerts.some(s=>s.includes('完成！')),'JSX 完成建工程');check(!mock.alerts.some(s=>/警告|缺少素材/.test(s)),'JSX 无素材或图层警告',mock.alerts);eq(mock.imports,TL.assets.length,'JSX 导入全部素材');eq(mock.layers,main.layers.length,'JSX 创建全部主合成图层');eq(mock.width,720,'JSX 合成宽');eq(mock.height,1600,'JSX 合成高');eq(mock.newProjects,1,'JSX 创建一次工程');eq(mock.saves,0,'saveAep=false 不另存文件');check(mock.allAssetsExist,'JSX 导入路径均存在');eq(mock.stats?.layers,TL.meta.stats.layers,'JSX 图层统计一致');check(mock.stats?.keys>0,'JSX 创建动画关键帧');check(mock.stats?.markers>0,'JSX 创建音效标记');
     const bake=await page.evaluate(async()=>{const r=await __app.recorder.exportZip(__app.lastRecord,{aeSampling:'bake',aeNames:'en',aeFps:25,aeSize:'1080x2400',aeAudio:'none'});return {meta:r.timeline.meta,main:r.timeline.comps.find(c=>c.id==='main'),assets:r.timeline.assets.length};});
-    eq(bake.meta.sampling,'bake','可逐帧烘焙');eq(bake.meta.fps,25,'烘焙尊重 25fps');eq(bake.meta.width,1080,'可输出 1080 宽');eq(bake.meta.height,2400,'可输出 2400 高');eq(bake.main.name,'Main_PlantLight','可英文命名');check(bake.meta.stats.keys>=TL.meta.stats.keys,'烘焙关键帧不低于精简采样',{bake:bake.meta.stats.keys,reduce:TL.meta.stats.keys});await writeJson(path.join(outDir,'bake-meta.json'),bake.meta);
+    eq(bake.meta.sampling,'bake','可逐帧烘焙');eq(bake.meta.fps,25,'烘焙尊重 25fps');eq(bake.meta.width,1080,'可输出 1080 宽');eq(bake.meta.height,2400,'可输出 2400 高');eq(bake.main.name,'Main_PhenologyAtlas','可英文命名');check(bake.meta.stats.keys>=TL.meta.stats.keys,'烘焙关键帧不低于精简采样',{bake:bake.meta.stats.keys,reduce:TL.meta.stats.keys});await writeJson(path.join(outDir,'bake-meta.json'),bake.meta);
     stage('AE：独立时间轴回放与网页快照 PSNR');
     const snaps=await page.evaluate(()=>{const a=__app.lastRecord.snaps;return [...new Set([0,Math.floor(a.length*.25),Math.floor(a.length*.5),Math.floor(a.length*.75),a.length-1])].map(i=>a[i]);});
     const projectUrl=server.origin+'/'+path.relative(ROOT,projectDir).split(path.sep).join('/');
@@ -54,6 +57,7 @@ try {
     stage('3D：GLB / 二进制 FBX / 场景结构');
     for(const f of ['scene.glb','scene.fbx','scene3d.json','timeline.json','blender_import.py','README_3D.md'])check(fs.existsSync(path.join(projectDir,f)),'存在 '+f);
     const meta=await readJson(path.join(projectDir,'scene3d.json')),glb=readGlb(await fsp.readFile(path.join(projectDir,'scene.glb'))),fbx=await fsp.readFile(path.join(projectDir,'scene.fbx'));
+    eq(meta.world.background,await page.evaluate(()=>__app.lastRecord.S.bgBottom),'3D 底板沿用录制时的图版下色');
     eq(meta.format,'export3d/1','3D schema');eq(meta.tool,'plant-light-tool','3D 工具标识');eq(meta.fps,25,'3D 尊重设定 25fps');eq(meta.width,720,'3D 宽');eq(meta.height,1600,'3D 高');eq(meta.camera.name,'Camera_PlantLight','原生相机命名');near(meta.camera.aspect,9/20,.001,'相机比例 9:20');eq(meta.frames,meta.frameEnd+1,'帧范围一致');check(meta.nodes.length>=run.flowers,'每个元素有独立网格');check(meta.stats.tracks>0,'GLB/FBX 含动画轨道');check(meta.audio.length>0,'3D 包含事件音轨');
     eq(glb.magic,'glTF','GLB 二进制签名');eq(glb.version,2,'glTF 2.0');eq(glb.length,fs.statSync(path.join(projectDir,'scene.glb')).size,'GLB 长度字段');check(glb.binLen>0,'GLB 内嵌二进制数据');check(glb.json.images?.every(i=>i.bufferView!==undefined),'GLB 图片内嵌');check(glb.json.animations?.[0]?.channels?.length>0,'GLB 原生动画通道');check(glb.json.cameras?.length>0,'GLB 原生相机');eq(fbx.subarray(0,18).toString(),'Kaydara FBX Binary','FBX 为真实二进制文件');eq(fbx.readUInt32LE(23),7400,'FBX 7400');
     const soil=meta.nodes.find(n=>/^(soil|tile)_/.test(n.asset)),flower=meta.nodes.find(n=>/^flower_/.test(n.asset)),hand=meta.nodes.find(n=>/^hand(?:_|$)/.test(n.asset));check(soil&&flower&&soil.z<flower.z,'土壤位于花朵后方的独立景深',{soil:soil?.z,flower:flower?.z});check(hand&&hand.z>flower.z,'手指位于植物前方',{hand:hand?.z,flower:flower?.z});
