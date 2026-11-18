@@ -1,0 +1,25 @@
+{
+  "name": "plant-light-tool",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "植物光路 · 核玩工具：十字藤蔓光线解谜、关卡编辑、录制与 AE/GLB/FBX/H5 导出",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node server.mjs",
+    "test:logic": "node test/logic-test.mjs",
+    "test": "node test/browser-test.mjs",
+    "test:ae": "node test/export-test.mjs ae",
+    "test:3d": "node test/export-test.mjs 3d",
+    "test:h5": "node test/h5-test.mjs",
+    "test:cursor": "node test/cursor-test.mjs",
+    "test:motion": "node test/motion-test.mjs",
+    "test:all": "npm run test:logic && npm test && npm run test:ae && npm run test:3d && npm run test:h5 && npm run test:cursor && npm run test:motion"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.49.1",
+    "three": "^0.170.0",
+    "@comfyorg/fbx-exporter-three": "^1.0.2"
+  }
+}

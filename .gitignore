@@ -1,0 +1,22 @@
+node_modules
+test/artifacts/
+ref/frames/
+ref/analysis/
+ref/PROGRESS_v1.1.md
+.DS_Store
+*.mp4
+*.webm
+
+# Historical captures and replaced sprites kept in the working copy.
+screenshots/*-final.png
+screenshots/*-initial*.png
+screenshots/art-lv2-*.png
+screenshots/art-helper-*.png
+screenshots/art-endcard-v2.png
+screenshots/art-custom-end-icon.png
+screenshots/art-polished-*.png
+screenshots/art-polish-comparison.jpg
+src/art-assets/bud-*.png
+src/art-assets/flower-*.png
+src/art-assets/vine-*.png
+src/art-assets/seed-root.png

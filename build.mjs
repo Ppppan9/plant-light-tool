@@ -1,0 +1,12 @@
+import { build } from 'esbuild';
+import fs from 'node:fs';
+const notices='<!--\n'+fs.readFileSync('THIRD_PARTY_LICENSES.txt','utf8').replace(/-->/g,'-- >')+'\n-->\n';
+const shared={bundle:true,format:'iife',write:false,minify:!process.env.NOMIN,target:'es2020',legalComments:'inline',loader:{'.png':'dataurl','.jpg':'dataurl','.webp':'dataurl','.woff':'dataurl','.woff2':'dataurl','.jsx':'text','.md':'text','.py':'text'}};
+const playable=await build({...shared,entryPoints:['src/playable.js']});
+const playableJs=playable.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');
+const playableHtml=`<!DOCTYPE html>${notices}<html lang="zh-CN"><head><meta charset="UTF-8"><title>Bloom Garden</title><style>html,body{margin:0;background:#356f27;font-family:system-ui,sans-serif}#stage{display:block;cursor:pointer;touch-action:none}#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:200;background:#244221e8;color:#fff8dc;padding:10px 18px;border-radius:16px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}#toast.show{opacity:1}</style></head><body><div id="app"><div id="stageWrap"><canvas id="stage" width="720" height="1600" aria-label="植物光路花园，按住空格预览，松手种植"></canvas></div></div><div id="toast" role="status"></div><script>${playableJs}</script></body></html>`;
+const result = await build({...shared,entryPoints:['src/main.js'],define:{__PLAYABLE_DOCUMENT__:JSON.stringify(playableHtml)}});
+const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+const html = fs.readFileSync('src/template.html', 'utf8').replace(/<!DOCTYPE html>/i,'<!DOCTYPE html>\n'+notices).replace('/*__BUNDLE__*/', () => js);
+fs.writeFileSync('index.html', html);
+console.log(`植物光路 index.html · ${(Buffer.byteLength(html) / 1024 / 1024).toFixed(2)} MB · 离线单文件`);

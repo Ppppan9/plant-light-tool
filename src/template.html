@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>植物光路 · 核玩工具</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:radial-gradient(ellipse at 30% 20%,#b4d896 0%,#74a663 50%,#335f36 100%) fixed;color:#4a2a10;font:13px/1.4 "Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif}
+#app{display:flex;height:100vh;gap:14px;padding:10px}
+#stageWrap{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;position:relative}
+#stage{height:calc(100vh - 20px);max-width:100%;aspect-ratio:9/20;background:#000;box-shadow:0 8px 0 rgba(30,70,110,.35),0 10px 34px rgba(0,0,0,.35);border-radius:14px;cursor:pointer;touch-action:none}
+/* ---------- 控制台：卡通木框 + 天空色 ---------- */
+#panel{width:430px;flex:none;display:flex;flex-direction:column;background:linear-gradient(#fff6dc,#ffe9b8);border:5px solid #8a5426;border-radius:22px;overflow:hidden;box-shadow:0 8px 0 #5d3615,0 16px 40px rgba(0,0,0,.35)}
+#panelHead{padding:0 0 8px;background:linear-gradient(#fff6dc,#fdebc2);border-bottom:4px solid #8a5426}
+#panelHead h1{margin:0;padding:9px 14px 9px;font-size:20px;font-weight:800;color:#fff;letter-spacing:1px;background:linear-gradient(#83bd68,#4f8b47);border-bottom:4px solid #8a5426;text-shadow:0 2px 0 #37652d,0 0 6px #37652d;display:flex;align-items:center;gap:8px}
+#panelHead h1 small{font-size:12px;font-weight:700;letter-spacing:0;color:#e9f7ff;text-shadow:0 1px 0 #37652d;margin-left:auto}
+.pcard{margin:6px 10px 0;padding:5px 7px 7px;background:#fffaf0;border:3px solid #d9b26a;border-radius:14px}
+.pcard .ptitle{font-size:12px;font-weight:800;color:#9a5a20;margin:0 0 5px 2px;display:flex;align-items:center;gap:5px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.btns button{flex:1 1 30%}
+.pcard.slim .btns{align-items:center}.pcard.slim button{flex:1 1 0;min-width:0;font-size:12px;padding:2px 6px;border-bottom-width:4px;border-radius:10px}
+button{font:inherit;font-weight:800;color:#fff;background:linear-gradient(#b98652,#8a5426);border:3px solid #5d3615;border-bottom-width:5px;border-radius:12px;padding:5px 9px;cursor:pointer;white-space:nowrap;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+button:hover{filter:brightness(1.08)}
+button:active{transform:translateY(2px);border-bottom-width:3px}
+button.primary{background:linear-gradient(#7ee063,#3fa83a);border-color:#256d24}
+button.big{font-size:15px;padding:7px 10px}
+button.blue{background:linear-gradient(#6db8ff,#3a7fd6);border-color:#245a9c}
+button.orange{background:linear-gradient(#ffc36b,#e8861f);border-color:#9a5310}
+button.ghost{background:linear-gradient(#fff3d6,#f3d9a4);color:#7a4a1c;text-shadow:none;border-color:#b98652}
+button.on{background:linear-gradient(#ff8080,#d63a3a);border-color:#8f2222}
+#levelSel,.pselect{flex:1 1 40%;min-width:0;font:inherit;font-weight:800;font-size:14px;color:#4a2a10;background:#fff;border:3px solid #8a5426;border-radius:12px;padding:5px 8px;cursor:pointer}
+#status{margin:6px 10px 0;padding:5px 10px;border-radius:12px;background:#e6f6ff;border:2px solid #8fc7ec;color:#1f5d8c;font-size:12px;font-weight:700}
+#recInfo{margin:4px 12px 0;color:#b4421f;font-size:12px;font-weight:700}
+#recInfo:empty{display:none}
+#recList{margin:0 10px}
+#recList a{display:block;color:#245a9c;font-size:12px;font-weight:700;margin-top:3px;word-break:break-all;background:#fff;border:2px dashed #8fc7ec;border-radius:10px;padding:3px 8px;text-decoration:none}
+#panelTools{display:flex;gap:6px;align-items:center;padding:7px 10px;background:#f3d9a4;border-bottom:3px solid #d9b26a}
+#panelTools input{flex:1;min-width:0;font:inherit;font-weight:700;color:#4a2a10;background:#fffaf0;border:3px solid #b98652;border-radius:12px;padding:4px 10px}
+#panelTools button{font-size:12px;padding:2px 8px;border-bottom-width:4px;border-radius:10px}
+#panelBody{overflow-y:auto;flex:1;padding:4px 10px 30px}
+#panelBody::-webkit-scrollbar{width:10px}#panelBody::-webkit-scrollbar-thumb{background:#c9995a;border-radius:10px;border:2px solid #ffe9b8}
+.pcat{margin:12px 2px 2px;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(90deg,#8a5426,#b98652 70%,transparent);padding:3px 10px;border-radius:10px;letter-spacing:1px;text-shadow:0 1px 0 rgba(0,0,0,.3)}
+details{border:3px solid #d9b26a;border-radius:14px;margin:7px 0;background:#fffaf0;overflow:hidden}
+details[open]{border-color:#c48a3e;box-shadow:0 3px 0 #e7c88a}
+summary{cursor:pointer;padding:7px 10px;font-weight:800;font-size:14px;color:#7a4a1c;user-select:none;list-style:none;display:flex;align-items:center;gap:8px;background:linear-gradient(#fff3d6,#f6dfae)}
+summary::-webkit-details-marker{display:none}
+summary .gi{width:26px;height:26px;flex:none;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:#fff;border:2px solid #c48a3e;font-size:15px}
+summary .gn{flex:1}
+summary .gc{font-size:11px;font-weight:800;color:#9a5a20;background:#fff;border:2px solid #e3c385;border-radius:10px;padding:0 7px}
+summary::after{content:"▸";font-size:14px;color:#9a5a20;transition:transform .15s}
+details[open]>summary::after{transform:rotate(90deg)}
+details[open]>summary{border-bottom:2px dashed #e3c385}
+.row{display:flex;align-items:center;gap:6px;padding:4px 10px}
+.row:nth-child(odd){background:rgba(243,217,164,.18)}
+.row label{flex:0 0 150px;color:#5a3414;font-size:12px;font-weight:700}
+.row input[type=range]{flex:1;min-width:60px;-webkit-appearance:none;appearance:none;height:10px;border-radius:8px;background:linear-gradient(#ecd3a2,#f7e6c4);border:2px solid #b98652;outline:none;cursor:pointer}
+.row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffd36b,#e8861f);border:3px solid #8a5426;box-shadow:0 2px 0 #5d3615}
+.row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#e8861f;border:3px solid #8a5426}
+.row input.val{width:64px;font:inherit;font-weight:700;background:#fff;color:#4a2a10;border:2px solid #b98652;border-radius:8px;padding:2px 4px}
+.row[data-key=seed] input.val{width:94px;flex:0 0 94px}
+.row input[type=text],.row input[type=number]:not(.val),.row select,.row textarea{flex:1;min-width:0;background:#fff;color:#4a2a10;border:2px solid #b98652;border-radius:9px;padding:3px 6px;font:inherit;font-weight:700}
+.row input[type=checkbox]:not(.switch-input){width:20px;height:20px;accent-color:#3fa83a;cursor:pointer}
+.row input[type=color]{width:46px;height:26px;border:2px solid #8a5426;border-radius:8px;background:#fff;padding:1px;cursor:pointer}
+.row input[type=file]{flex:1;min-width:0;font-size:11px;color:#5a3414}
+.row input[type=file]::file-selector-button{font:inherit;font-weight:800;color:#7a4a1c;background:#fff3d6;border:2px solid #b98652;border-radius:9px;padding:2px 8px;cursor:pointer}
+.row button{padding:2px 9px;font-size:12px;border-bottom-width:4px;border-radius:10px}
+.row.hidden-by-filter,details.hidden-by-filter,.pcat.hidden-by-filter{display:none}
+.handprev{align-items:flex-start}
+#handPrev{border-radius:10px;border:3px solid #8a5426;cursor:crosshair;width:150px;height:190px}
+#toast{position:absolute;top:18px;left:50%;transform:translateX(-50%);background:rgba(74,42,16,.92);color:#fff;font-weight:800;padding:8px 16px;border-radius:20px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+#toast.show{opacity:1}
+#migrateBanner{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:50;max-width:min(860px,94vw);background:#fff8e1;color:#4a3000;border:1px solid #e0b84a;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.6;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#migrateBanner button{margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid #c79a2a;background:#ffe69a;color:#4a3000;text-shadow:none;cursor:pointer}
+#migrateBanner button#mbReset{background:#4caf50;color:#fff;border-color:#2e7d32}
+.row.t-switch label{flex:1}
+.switch{position:relative;display:inline-block;width:50px;height:28px;flex:none;cursor:pointer}
+.switch .switch-input{opacity:0;width:0;height:0;position:absolute}
+.switch .slider{position:absolute;inset:0;background:#d8c39a;border:2px solid #8a5426;border-radius:28px;transition:background .2s}
+.switch .slider:before{content:"";position:absolute;width:20px;height:20px;left:2px;top:2px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 2px 0 #8a5426}
+.switch .switch-input:checked+.slider{background:linear-gradient(#7ee063,#3fa83a)}
+.switch .switch-input:checked+.slider:before{transform:translateX(22px)}
+.switch .switch-input:focus-visible+.slider{outline:3px solid #ffd02a;outline-offset:2px}
+.row.dimmed{opacity:.45;pointer-events:none}
+.tip{font-size:11px;color:#8a6a40;padding:6px 10px;background:#fff8e6;border-top:2px dashed #e3c385}
+@media(max-width:820px){html,body{height:auto}#app{flex-direction:column;height:auto;padding:6px;gap:12px}#stageWrap{flex:none}#stage{height:auto;width:100%;max-height:calc(100vh - 12px)}#panel{width:100%;border-radius:18px}#panelBody{max-height:none;overflow:visible}
+  .row{flex-wrap:wrap}.row label{flex:1 1 100%}.row.t-switch label,.row.t-checkbox label{flex:1 1 0}.btns button{flex:1 1 30%;padding:7px 6px}#panelTools{position:sticky;top:0;z-index:2}}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="stageWrap"><canvas id="stage" width="720" height="1600" aria-label="植物光路花园，按住空格预览十字藤蔓，松手种植"></canvas><div id="toast" role="status"></div></div>
+ <aside id="panel" aria-label="核玩工具控制台">
+  <div id="panelHead">
+   <h1>🌱 植物光路 · 控制台 <small>核玩工具</small></h1>
+   <div class="pcard"><div class="ptitle">🎬 演示 · 录制 · 素材制作</div><div class="btns">
+    <button id="btnAuto" class="primary">▶ 自动通关</button><button id="btnRec">⏺ 开始录制</button><button id="btnNew" class="ghost">↻ 重新开始</button>
+    <button id="btnSeed" class="ghost">🎲 换一局</button><button id="btnBuilder" class="orange">🧱 关卡搭建器</button><button id="btnShot" class="blue">📷 截图</button>
+    <button id="btnExport" class="ghost">导出设置</button><button id="btnImport" class="ghost">导入设置</button><button id="btnReset" class="ghost">恢复默认</button>
+   </div></div>
+   <div class="pcard"><div class="ptitle">🌸 花园关卡 <span style="margin-left:auto;font-size:10px">种下十字藤蔓，让每朵花绽放</span></div><div class="btns"><select id="levelSel" aria-label="选择关卡"></select><button id="btnShape" class="ghost">🖼 图形关卡</button></div></div>
+   <input id="importFile" type="file" accept=".json,application/json" hidden><input id="shapeFile" type="file" accept="image/png,image/webp" hidden>
+   <div id="status" role="status">正在加载花园…</div><div id="recInfo">尚无录制</div><div id="recList"></div>
+  </div>
+  <div id="panelTools"><input id="panelSearch" type="search" placeholder="🔍 搜索设置（如 花朵、手指、H5）" aria-label="搜索设置"><button id="btnExpandAll" class="ghost">全部展开</button><button id="btnCollapseAll" class="ghost">全部收起</button></div>
+  <div id="panelBody"></div>
+ </aside>
+</div>
+<script>/*__BUNDLE__*/</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+{
+  "bud-pink": {
+    "file": "bud-pink.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 2
+  },
+  "flower-pink": {
+    "file": "flower-pink.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 2
+  },
+  "bud-purple": {
+    "file": "bud-purple.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 2
+  },
+  "flower-purple": {
+    "file": "flower-purple.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 2
+  },
+  "bud-blue": {
+    "file": "bud-blue.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 2
+  },
+  "flower-blue": {
+    "file": "flower-blue.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 2
+  },
+  "bud-orange": {
+    "file": "bud-orange.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 2
+  },
+  "flower-orange": {
+    "file": "flower-orange.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 2
+  },
+  "bud-white": {
+    "file": "bud-white.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 2
+  },
+  "flower-white": {
+    "file": "flower-white.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 2
+  },
+  "leaf-root": {
+    "file": "leaf-root.png",
+    "width": 320,
+    "height": 180,
+    "anchor": [
+      160,
+      145
+    ],
+    "renderScale": 2
+  },
+  "leaf": {
+    "file": "leaf.png",
+    "width": 128,
+    "height": 192,
+    "anchor": [
+      64,
+      176
+    ],
+    "renderScale": 2
+  },
+  "leaf-b": {
+    "file": "leaf-b.png",
+    "width": 128,
+    "height": 192,
+    "anchor": [
+      64,
+      176
+    ],
+    "renderScale": 2
+  },
+  "seed": {
+    "file": "seed.png",
+    "width": 128,
+    "height": 160,
+    "anchor": [
+      64,
+      80
+    ],
+    "renderScale": 2
+  }
+}

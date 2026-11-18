@@ -1,0 +1,284 @@
+{
+  "bud-pink": {
+    "file": "bud-pink.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      50,
+      76,
+      207,
+      292
+    ],
+    "bytes": 32743,
+    "runtimeFile": "bud-pink.webp",
+    "runtimeBytes": 11274
+  },
+  "flower-pink": {
+    "file": "flower-pink.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      26,
+      290,
+      276
+    ],
+    "bytes": 56698,
+    "runtimeFile": "flower-pink.webp",
+    "runtimeBytes": 14378
+  },
+  "bud-purple": {
+    "file": "bud-purple.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      50,
+      76,
+      207,
+      292
+    ],
+    "bytes": 32662,
+    "runtimeFile": "bud-purple.webp",
+    "runtimeBytes": 11222
+  },
+  "flower-purple": {
+    "file": "flower-purple.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      26,
+      290,
+      276
+    ],
+    "bytes": 57280,
+    "runtimeFile": "flower-purple.webp",
+    "runtimeBytes": 14076
+  },
+  "bud-blue": {
+    "file": "bud-blue.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      50,
+      76,
+      207,
+      292
+    ],
+    "bytes": 32093,
+    "runtimeFile": "bud-blue.webp",
+    "runtimeBytes": 11348
+  },
+  "flower-blue": {
+    "file": "flower-blue.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      26,
+      290,
+      276
+    ],
+    "bytes": 56911,
+    "runtimeFile": "flower-blue.webp",
+    "runtimeBytes": 14508
+  },
+  "bud-orange": {
+    "file": "bud-orange.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 1,
+    "colorFinish": "orange petals: +14% HSV saturation, value and alpha fixed",
+    "sourceRenderScale": 2,
+    "bounds": [
+      50,
+      76,
+      207,
+      292
+    ],
+    "bytes": 32945,
+    "runtimeFile": "bud-orange.webp",
+    "runtimeBytes": 11328
+  },
+  "flower-orange": {
+    "file": "flower-orange.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 1,
+    "colorFinish": "orange petals: +14% HSV saturation, value and alpha fixed",
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      26,
+      290,
+      276
+    ],
+    "bytes": 57364,
+    "runtimeFile": "flower-orange.webp",
+    "runtimeBytes": 14832
+  },
+  "bud-white": {
+    "file": "bud-white.png",
+    "width": 256,
+    "height": 320,
+    "anchor": [
+      128,
+      290
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      50,
+      76,
+      207,
+      292
+    ],
+    "bytes": 27776,
+    "runtimeFile": "bud-white.webp",
+    "runtimeBytes": 10650
+  },
+  "flower-white": {
+    "file": "flower-white.png",
+    "width": 320,
+    "height": 320,
+    "anchor": [
+      160,
+      160
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      26,
+      290,
+      276
+    ],
+    "bytes": 41509,
+    "runtimeFile": "flower-white.webp",
+    "runtimeBytes": 12092
+  },
+  "leaf-root": {
+    "file": "leaf-root.png",
+    "width": 320,
+    "height": 180,
+    "anchor": [
+      160,
+      145
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      88,
+      15,
+      233,
+      147
+    ],
+    "bytes": 23185,
+    "runtimeFile": "leaf-root.webp",
+    "runtimeBytes": 8182
+  },
+  "leaf": {
+    "file": "leaf.png",
+    "width": 128,
+    "height": 192,
+    "anchor": [
+      64,
+      176
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      31,
+      31,
+      102,
+      177
+    ],
+    "bytes": 11164,
+    "runtimeFile": "leaf.webp",
+    "runtimeBytes": 4744
+  },
+  "leaf-b": {
+    "file": "leaf-b.png",
+    "width": 128,
+    "height": 192,
+    "anchor": [
+      64,
+      176
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      21,
+      36,
+      99,
+      178
+    ],
+    "bytes": 11541,
+    "runtimeFile": "leaf-b.webp",
+    "runtimeBytes": 4730
+  },
+  "seed": {
+    "file": "seed.png",
+    "width": 128,
+    "height": 160,
+    "anchor": [
+      64,
+      80
+    ],
+    "renderScale": 1,
+    "sourceRenderScale": 2,
+    "bounds": [
+      29,
+      15,
+      99,
+      135
+    ],
+    "bytes": 9366,
+    "runtimeFile": "seed.webp",
+    "runtimeBytes": 3794
+  }
+}
