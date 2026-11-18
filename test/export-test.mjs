@@ -27,6 +27,17 @@ try {
   check(fs.existsSync(path.join(projectDir,'audio/mix.wav')),'包含混合音轨');check(TL.comps.some(c=>c.id==='sfx'&&c.layers.length>0),'包含逐事件音效预合成');
   if(mode==='ae') {
     stage('AE：精简/逐帧采样与 JSX 工程构建');
+    const effects=TL.assets.filter(asset=>asset.id.startsWith('fx_'));
+    check(effects.length>0 && effects.every(asset=>asset.folder==='fx') && TL.folders.some(folder=>folder.id==='fx' && folder.parent==='img'),'花园特效归入独立素材目录');
+    const handVisible=await page.evaluate(()=>{
+      const recording=__app.lastRecord;
+      const track=[...recording.tracks.values()].find(track=>track.id==='hand');
+      if(!track)return [];
+      const drawn=new Set(track.s.map(sample=>sample[7]));
+      return recording.frameTimes.map((time,frame)=>({time,drawn:drawn.has(frame)}));
+    });
+    const handLayers=main.layers.filter(layer=>layer.name==='手指'||layer.name.startsWith('手指 #'));
+    check(handVisible.some(frame=>frame.drawn) && !handVisible.at(-1).drawn && handVisible.every(frame=>frame.drawn===handLayers.some(layer=>layer.in<=frame.time && frame.time<layer.out)),'导出手指逐采样帧与实际显隐一致');
     eq(TL.meta.sampling,'reduce','默认精简关键帧');eq(TL.meta.names,'zh','中文命名');eq(main.name,'主合成_植物光路','主合成命名');
     check(main.layers.some(l=>l.name==='手指'),'固定手指层名');check(main.layers.some(l=>l.name==='背景'),'固定背景层名');
     const mix=main.layers.find(l=>l.src?.asset==='mix');eq(mix?.audioEnabled,false,'同时导出混音与事件时混音静音防止重叠');

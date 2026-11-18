@@ -9,6 +9,7 @@ import { createAERecorder } from './ae/recorder.js';
 import { export3DAnimation } from './export3d/export3d.js';
 import { exportH5PlayableFromPage, applyPlayableMode, bindEditorDevicePreview, isPlayableNoHand } from './h5/index.js';
 import { createFeedback, undoFeedback, interactionDelay, scheduleGrowthFeedback } from './feedback.js';
+import { bindGardenLife } from './garden-life.js';
 
 // 先捕获原始自包含页面；file:// 导出不需要 fetch 文件或启动服务器。
 window.__PLANTLIGHT_BASE_HTML__=__PLAYABLE_DOCUMENT__;
@@ -25,6 +26,7 @@ const now=()=>performance.now()/1000;
 const sleep=ms=>new Promise(r=>setTimeout(r,Math.max(0,ms)));
 const rand=(a,b)=>a+Math.random()*(b-a);
 const feedback=createFeedback(UI,now);
+const gardenLife=bindGardenLife(canvas,{env:()=>({L,S,layout:()=>boardLayout(L,S),items,ui:UI,blocked:busy,automatic:AUTO.running}),position,clock:now});
 const recorder=createAERecorder({env:()=>({L,S,A,items,canvas}),sfx});
 
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
@@ -43,7 +45,7 @@ function populateLevels(){const sel=$('#levelSel');sel.replaceChildren();for(con
 function newGame(id=S.level,{keepAuto=false,level=null}={}){
   if(!keepAuto)stopAuto(false);
   try{if(level){L=Core.normalizeLevel(level);S.customData=L;S.level='custom';}else if(String(id).startsWith('saved:')){const custom=loadCustomList()[+String(id).slice(6)];if(!custom)throw new Error('本机关卡不存在');L=Core.normalizeLevel(custom);S.level=String(id);}else{S.level=String(id);L=Core.getLevel(S.level,S);}
-    ST=Core.createState();Object.assign(UI,{preview:null,hint:null,tap:null,helper:null,winAt:0,undoCount:+S.undoCount,hintCount:+S.hintCount,waterCount:+S.waterCount,waterMode:false,endMode:false,lastAction:-Infinity});feedback.clear();drag=null;sync();save();return L;
+    ST=Core.createState();Object.assign(UI,{preview:null,hint:null,tap:null,helper:null,winAt:0,undoCount:+S.undoCount,hintCount:+S.hintCount,waterCount:+S.waterCount,waterMode:false,endMode:false,lastAction:-Infinity});feedback.clear();gardenLife.start();drag=null;sync();save();return L;
   }catch(e){toast(e.message);if(!L){S.level='2';L=Core.getLevel('2');}return null;}
 }
 function doPlant(c,r,{automatic=false}={}){
@@ -64,7 +66,7 @@ function doHint(force=false){if(!force&&!S.unlockBoosters&&Number(L.id)<7){toast
 function waterFlower(c,r){const invalid=reason=>{if(Core.inBounds(L,c,r))feedback.emit('invalid',{c,r,reason});return false;};if(busy||ST.status==='won'||(!S.unlockBoosters&&Number(L.id)<12)||UI.waterCount<=0){toast('浇水壶未解锁或次数已用完');return invalid('浇水壶未解锁或次数已用完');}const f=L.flowers.find(x=>x.c===c&&x.r===r&&!ST.bloomed.includes(x.id));if(!f){toast('请选择还没绽放的花苞');return invalid('请选择还没绽放的花苞');}ST.history.push(Core.copyState(ST));ST.bloomed.push(f.id);const at=now(),bloomAt=at+interactionDelay(S,.28);ST.bloomTimes[f.id]=bloomAt;UI.waterCount--;UI.waterMode=false;feedback.emit('water',{c,r,flowerId:f.id});sfx.play('water',S);if(ST.bloomed.length===L.flowers.length){ST.status='won';UI.winAt=bloomAt;sfx.play('win',S);if(!AUTO.running&&REC.recorder&&S.autoStop){const state=ST;setTimeout(()=>{if(ST===state&&REC.recorder)stopRecording();},+S.winDelay+S.tailSec*1000);}}else if(ST.used<L.seeds)ST.status='playing';sync();return true;}
 function nextLevel(keepAuto=false){const i=Core.REFERENCE_LEVELS.findIndex(l=>String(l.id)===S.level);if(i>=0&&i<Core.REFERENCE_LEVELS.length-1)newGame(String(Core.REFERENCE_LEVELS[i+1].id),{keepAuto});else if(S.level==='random'){S.seed++;newGame('random',{keepAuto});}else newGame('2',{keepAuto});const helper={4:'undo',7:'hint',12:'water'}[L.id];if(helper&&S.showTutorial&&!seenHelpers.has(helper)){seenHelpers.add(helper);UI.helper=helper;}}
 async function moveHand(x,y,token,press=false){const x0=HAND.x,y0=HAND.y,d=rand(+S.moveMin,+S.moveMax)/(+S.autoSpeed||1),start=performance.now(),curve=(S.curve||0)*Math.hypot(x-x0,y-y0),dx=x-x0,dy=y-y0,len=Math.hypot(dx,dy)||1;HAND.visible=true;
-  while(performance.now()-start<d){if(!AUTO.running||token!==AUTO.token)return false;const t=Math.min(1,(performance.now()-start)/d),u=t*t*(3-2*t),arc=Math.sin(t*Math.PI)*curve;HAND.x=x0+dx*u-dy/len*arc;HAND.y=y0+dy*u+dx/len*arc;await sleep(16);}HAND.x=x;HAND.y=y;if(press){HAND.press=1;await sleep(90/(+S.autoSpeed||1));HAND.press=0;}return true;
+  while(performance.now()-start<d){if(!AUTO.running||token!==AUTO.token)return false;const t=Math.min(1,(performance.now()-start)/d),u=t*t*(3-2*t),arc=Math.sin(t*Math.PI)*curve;HAND.x=x0+dx*u-dy/len*arc;HAND.y=y0+dy*u+dx/len*arc;gardenLife.move({x:HAND.x,y:HAND.y},true);await sleep(16);}HAND.x=x;HAND.y=y;gardenLife.move({x,y},true);if(press){HAND.press=1;await sleep(90/(+S.autoSpeed||1));HAND.press=0;gardenLife.release();}return true;
 }
 async function startAuto(){if(AUTO.running){stopAuto();return;}if(busy)return;AUTO.running=true;const token=++AUTO.token;AUTO.completed=0;HAND.visible=true;sync();
   if(ST.status==='won')newGame(S.level,{keepAuto:true});if(S.autoRec&&!REC.recorder)startRecording();
@@ -85,7 +87,7 @@ async function startAuto(){if(AUTO.running){stopAuto();return;}if(busy)return;AU
     if(!AUTO.running||token!==AUTO.token)break;HAND.press=0;doPlant(p.c,p.r,{automatic:true});await sleep(+S.growMs+rand(+S.delayMin,+S.delayMax)/(+S.autoSpeed||1));
   }}catch(e){toast('自动演示中止：'+e.message);console.error(e);}finally{if(token===AUTO.token){AUTO.running=false;UI.preview=null;HAND.press=0;HAND.visible=HAND.inside&&S.manualHand;sync();if(REC.recorder&&S.autoStop)setTimeout(()=>{if(REC.recorder)stopRecording();},+S.tailSec*1000);}}
 }
-function stopAuto(show=true){AUTO.running=false;AUTO.token++;HAND.press=0;HAND.visible=HAND.inside&&S.manualHand;UI.preview=null;sync();if(show)toast('已停止自动通关');}
+function stopAuto(show=true){AUTO.running=false;AUTO.token++;HAND.press=0;HAND.visible=HAND.inside&&S.manualHand;gardenLife.release();UI.preview=null;sync();if(show)toast('已停止自动通关');}
 function addRecordingLink(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.textContent=`⬇ ${name} · ${(blob.size/1048576).toFixed(2)} MB`;$('#recList').prepend(a);REC.list.push({blob,name});download(blob,name);}
 async function startRecording(){if(REC.recorder)return;if(!canvas.captureStream||!window.MediaRecorder){toast('当前浏览器不支持画布录制，请用 Chrome / Edge。');return;}await sfx.resume();const formats=S.recFormat==='webm'?['video/webm;codecs=vp9,opus','video/webm']:S.recFormat==='mp4'?['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4']:['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'];const mime=formats.find(x=>MediaRecorder.isTypeSupported(x));if(!mime){toast('所选录制格式不受浏览器支持，请选自动或 WebM。');return;}
   try{const stream=canvas.captureStream(+S.recFps||30);for(const track of sfx.recDest?.stream.getAudioTracks()||[])stream.addTrack(track);REC.chunks=[];REC.mime=mime;const media=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:(+S.recBitrate||8)*1e6});REC.recorder=media;REC.t0=performance.now();if(S.aeWithRec&&!recorder.rec)recorder.start();media.ondataavailable=e=>{if(e.data.size)REC.chunks.push(e.data);};media.onstop=async()=>{const blob=new Blob(REC.chunks,{type:mime});for(const track of stream.getVideoTracks())track.stop();const name=`plantlight_${stamp()}.${mime.includes('mp4')?'mp4':'webm'}`;addRecordingLink(blob,name);$('#recInfo').textContent=`录制完成 · ${(blob.size/1048576).toFixed(2)} MB`;if(S.aeWithRec&&recorder.rec){lastRecord=recorder.stop();try{await exportAE(true);}catch(e){toast(e.message);}}sync();};media.start(250);sync();}catch(e){REC.recorder=null;toast('录制失败：'+e.message);}

@@ -20,7 +20,7 @@ export const GROUPS=[
     O('theme','场景主题','reference',[['reference','参考 · 阳光花园'],['dusk','黄昏花园'],['mint','薄荷花园']]),
     C('bgTop','草地上部','#72b945'),C('bgMid','草地中部','#54a437'),C('bgBottom','草地下部','#216f25'),C('tileColor','泥土基色','#d59c69'),C('frameColor','花园木框','#f2ce7d'),
     R('flowerScale','花苞与花朵缩放',1,0.65,1.4,0.01),R('vineWidth','藤蔓粗细(px)',14,7,25),R('boardScale','花园整体缩放',1,0.7,1.1,0.01),R('boardY','花园中心 Y',910,760,1030),
-    B('bgMotion','蝴蝶 / 蜜蜂与背景轻动效',true),B('showParticles','开花与通关粒子',true),B('showPreview','按住时显示十字预览',true),B('interactionMotion','按压 / 落种 / 浇水 / 撤销动效',true),
+    B('bgMotion','蝴蝶 / 蜜蜂与背景轻动效',true),B('showParticles','落种 / 生长 / 开花粒子',true),O('particleDensity','粒子强度','normal',[['low','轻'],['normal','标准'],['high','丰富']]),B('showPreview','按住时显示十字预览',true),B('interactionMotion','植物 / 按压 / 落种 / 浇水 / 撤销动效',true),
   ]},
   {name:'节奏 / 演出',icon:'✨',items:[R('growMs','藤蔓生长时长(ms)',500,100,1800,10),R('bloomMs','花苞绽放时长(ms)',350,100,1200,10),R('winDelay','全开后结算延迟(ms)',900,0,3500,50),B('autoNext','自动演示连续点击下一关',true),R('autoLevelCount','自动演示连续关数',11,1,20),R('nextDelay','结算页停留(ms)',1000,100,4000,50),B('autoRecover','自动演示前撤回无解操作',true)]},
   {name:'音效',icon:'🔊',items:[B('sfxMute','静音',false),R('sfxVolume','总音量',0.65,0,1.5,0.01),B('sfxSeed','种下种子',true),B('sfxGrow','藤蔓生长',true),B('sfxBloom','花朵绽放',true),B('sfxWin','通关',true),B('sfxUndo','撤销',true),B('sfxFail','种子耗尽',true),B('sfxHint','提示',true),B('sfxWater','浇水',true),A('_sfx','试听工具音效','▶ 试听')]},

@@ -22,7 +22,7 @@ async function xy(page,x,y){const b=await page.locator('#stage').boundingBox();i
 async function cellXY(page,c,r){const p=await page.evaluate(({c,r})=>{const b=__app.boardLayout();return{x:b.cx(c),y:b.cy(r)};},{c,r});return xy(page,p.x,p.y);}
 async function clickCell(page,c,r){const p=await cellXY(page,c,r);await page.mouse.click(p.x,p.y);await frames(page);}
 async function clickHit(page,id){const p=await xy(page,...({undo:[118,1484],hint:[280,1484],water:[442,1484],reset:[646,145]})[id]);await page.mouse.click(p.x,p.y);await frames(page);}
-async function read(page){return page.evaluate(()=>({time:performance.now()/1000,used:__app.ST.used,status:__app.ST.status,moves:structuredClone(__app.ST.moves),vines:structuredClone(__app.ST.vines),bloomed:[...__app.ST.bloomed],bloomTimes:{...__app.ST.bloomTimes},flowers:structuredClone(__app.L.flowers),feedback:structuredClone(__app.UI.feedback),pressed:structuredClone(__app.UI.pressed),waterMode:__app.UI.waterMode,waterCount:__app.UI.waterCount,items:__app.items.map(i=>({...i})),missing:__app.items.filter(i=>!__app.A[i.asset]||!__app.A[i.asset].c?.width||!__app.A[i.asset].c?.height).map(i=>({id:i.id,asset:i.asset}))}));}
+async function read(page){return page.evaluate(()=>({time:performance.now()/1000,enteredAt:__app.UI.enteredAt,brushes:structuredClone(__app.UI.brushes||{}),used:__app.ST.used,status:__app.ST.status,moves:structuredClone(__app.ST.moves),vines:structuredClone(__app.ST.vines),bloomed:[...__app.ST.bloomed],bloomTimes:{...__app.ST.bloomTimes},flowers:structuredClone(__app.L.flowers),feedback:structuredClone(__app.UI.feedback),pressed:structuredClone(__app.UI.pressed),waterMode:__app.UI.waterMode,waterCount:__app.UI.waterCount,items:__app.items.map(i=>({...i})),missing:__app.items.filter(i=>!__app.A[i.asset]||!__app.A[i.asset].c?.width||!__app.A[i.asset].c?.height).map(i=>({id:i.id,asset:i.asset}))}));}
 async function shot(page,dir,name){await saveDataUrl(await page.locator('#stage').evaluate(c=>c.toDataURL('image/png')),path.join(dir,name+'-canvas.png'));await page.locator('#stage').screenshot({path:path.join(dir,name+'.png')});}
 async function startDemo(page){await page.evaluate(()=>{const c=document.querySelector('#stage');if(!c.captureStream||typeof MediaRecorder!=='function')return;const mime=['video/webm;codecs=vp9','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));if(!mime)return;const stream=c.captureStream(30),rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000});window.__motionDemo={rec,stream,chunks:[]};rec.ondataavailable=e=>{if(e.data.size)__motionDemo.chunks.push(e.data);};rec.start(200);});}
 async function stopDemo(page,dir){const url=await page.evaluate(()=>new Promise(resolve=>{const d=window.__motionDemo;if(!d||d.rec.state==='inactive')return resolve(null);d.rec.onstop=()=>{for(const t of d.stream.getTracks())t.stop();const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(new Blob(d.chunks,{type:d.rec.mimeType}));};d.rec.stop();}));if(url)await saveDataUrl(url,path.join(dir,'interaction-demo.webm'));}
@@ -30,6 +30,24 @@ async function stopDemo(page,dir){const url=await page.evaluate(()=>new Promise(
 async function runSuite(page,label,dir,{record=false}={}){
   await fs.mkdir(dir,{recursive:true});const evidence={label,steps:[],missing:[]};
   const take=async name=>{const s=await read(page);evidence.steps.push({name,...s});evidence.missing.push(...s.missing);return s;};
+  stage(label+' · 花园入场 / 待机 / 触碰回弹');
+  await reset(page,'2',{showTutorial:false});await page.evaluate(()=>__app.newGame());await frames(page,2);
+  const entering=await take('level-entry'),firstTile=entering.items.find(i=>i.id==='soil_0_0');
+  check(entering.time-entering.enteredAt<.2,label+' 新关卡记录独立入场起点');
+  check(firstTile?.sy<.94&&firstTile?.op<.9,label+' 左上方土格仍在入场途中');
+  await page.waitForTimeout(900);const settledEntry=await take('level-entry-settled');
+  check(settledEntry.items.find(i=>i.id==='soil_0_0')?.sy>firstTile.sy,label+' 土格入场弹落到完整尺寸');
+  const startAngles=settledEntry.items.filter(i=>i.id.endsWith('_bud')).map(i=>[i.id,i.rot]);
+  await page.waitForTimeout(150);const idle=await take('flower-idle');
+  check(idle.items.some(i=>{const prev=startAngles.find(([id])=>id===i.id);return prev&&Math.abs(i.rot-prev[1])>.002;}),label+' 靜置花苞有连续待机摇摆');
+  const touchFlower=idle.flowers[0],point=await cellXY(page,touchFlower.c,touchFlower.r);
+  await page.mouse.move(point.x,point.y);await page.mouse.down();await page.waitForTimeout(170);const touched=await take('flower-touch');
+  check(!!touched.brushes[touchFlower.id],label+' 手指停留在花苞上形成接触状态');
+  const beforeTouch=startAngles.find(([id])=>id===touchFlower.id+'_bud')?.[1],afterTouch=touched.items.find(i=>i.id===touchFlower.id+'_bud')?.rot;
+  check(Number.isFinite(beforeTouch)&&Number.isFinite(afterTouch)&&Math.abs(afterTouch-beforeTouch)>.08,label+' 触碰花朵明显倾斜');
+  const box=await page.locator('#stage').boundingBox();await page.mouse.move(box.x-8,box.y+box.height*.5);await page.mouse.up();await page.waitForTimeout(700);const recovered=await take('flower-touch-recovered');
+  eq(recovered.used,0,label+' 滑出花园后取消触碰不种下种子');
+  check(!recovered.brushes[touchFlower.id],label+' 花朵触碰回弹状态已清理');
   stage(label+' · 真实按压 / 抬起 / 移出取消');
   await reset(page);if(record)await startDemo(page);
   const initial=await take('initial'),waterBefore=initial.items.find(i=>i.id==='booster_water'),wp=await xy(page,442,1484);

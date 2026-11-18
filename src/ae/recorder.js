@@ -50,6 +50,7 @@ const labelOf = id =>
   id === 'background' ? LABEL.bg :
   /^(board|tile|soil|garden)/.test(id) ? LABEL.board : LABEL.ui;
 function folderOf(asset) {
+  if (/^fx_/.test(asset)) return 'fx';
   if (/^plant_(?:shadow|root)(?:_|$)/.test(String(asset)) || /^flower_leaves(?:_|$)/.test(String(asset))) return 'plants';
   if (/^(flower|bud)/.test(String(asset))) return 'flowers';
   if (/^(vine|leaf|seed|path|beam)/.test(String(asset))) return 'plants';
@@ -62,7 +63,7 @@ export function createAERecorder(api) {
   function start(opt = {}) {
     const E = api.env();
     R = {
-      t0: performance.now(), lastT: 0, frames: 0, tracks: new Map(), sfx: [], snaps: [],
+      t0: performance.now(), lastT: 0, frames: 0, frameTimes: [], tracks: new Map(), sfx: [], snaps: [],
       snapEvery: opt.snapEvery || window.__aeSnapEvery || 0, maxSnaps: opt.maxSnaps || 40,
       L: E.L, levels: new Set(), levelRefs: new Set(), S: { ...E.S }, A: { ...E.A },
     };
@@ -75,6 +76,7 @@ export function createAERecorder(api) {
     if (E.L && !R.levelRefs.has(E.L)) { R.levelRefs.add(E.L); R.levels.add(E.L.id ?? E.L.n ?? E.L.level ?? R.levelRefs.size); }
     Object.assign(R.A, E.A);
     const t = Math.max(R.lastT + (R.frames > 0 ? 1e-4 : 0), (now - R.t0) / 1000), f = R.frames;
+    R.frameTimes.push(t);
     for (const it of E.items) {
       if (!it.a) continue;
       const key = it.id + '|' + it.asset;
@@ -98,6 +100,7 @@ export function createAERecorder(api) {
       { id: 'scene', name: zh ? '场景' : 'Scene', parent: 'img' },
       { id: 'flowers', name: zh ? '花朵' : 'Flowers', parent: 'img' },
       { id: 'plants', name: zh ? '藤蔓与种子' : 'Vines and seeds', parent: 'img' },
+      { id: 'fx', name: zh ? '花园特效' : 'Garden effects', parent: 'img' },
       { id: 'ui', name: zh ? '界面' : 'UI', parent: 'img' },
       { id: 'aud', name: zh ? '音频' : 'Audio', parent: 'root' },
       { id: 'pre', name: zh ? '预合成' : 'Precomps', parent: 'root' },
@@ -160,13 +163,16 @@ export function createAERecorder(api) {
     segs.sort((p, q) => p.tr.z - q.tr.z || p.tr.order - q.tr.order || p.s[0][0] - q.s[0][0]);
     const segK = new Map();
     for (const g of segs) {
-      const a = assetFor(g.tr.asset), fr = resample(g.s), tin = fr.f0 / fps;
-      const last = g.s[g.s.length - 1], nextT = rec.frames - 1 > last[7] ? last[0] + 1 / fps : D;
-      const tout = Math.min(D, Math.max(tin + 1 / fps, Math.round(nextT * fps) / fps));
+      const a = assetFor(g.tr.asset), fr = resample(g.s);
+      // Visibility changes on the observed display frame, independent of the
+      // export frame rate used for interpolated transforms.
+      const first = g.s[0], last = g.s[g.s.length - 1];
+      const tin = first[7] === 0 ? 0 : first[0];
+      const tout = rec.frameTimes[last[7] + 1] ?? D;
       const k = g.tr.id + '|' + g.tr.asset, n = (segK.get(k) || 0) + 1; segK.set(k, n);
       const nm = layerName(g.tr.id, g.tr.asset, zh) + (nSeg.get(k) > 1 ? ` #${n}` : '');
       layers.push({
-        name: nm, src: { asset: a.id }, in: r4(tin), out: r4(tout), label: labelOf(g.tr.id), z: g.tr.z,
+        name: nm, src: { asset: a.id }, in: tin, out: tout, label: labelOf(g.tr.id), z: g.tr.z,
         tr: {
           anchor: [rnd(a.ax * a.kx), rnd(a.ay * a.ky)],
           position: prop(fr, e => [e[1], e[2]], 0.25),

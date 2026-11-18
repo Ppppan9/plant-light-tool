@@ -28,6 +28,7 @@ import BUSH_RIGHT from './art-assets/bush-right.png';
 import BUSH_LEFT from './art-assets/bush-left.png';
 import WATERING_CAN from './art-assets/watering-can.png';
 import {installSoilSurfaces, soilVariant} from './garden-soil.js';
+import {brushBend, entrancePose, flowerPose, pruneGardenBrushes} from './garden-life.js';
 
 export const DW=720,DH=1600;
 const TAU=Math.PI*2, A={}, SOURCES={};
@@ -149,7 +150,10 @@ function frameSprite(layout,S){
 }
 
 export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
+  pruneGardenBrushes(ui,time);
   const items=[],hits=[],layout=boardLayout(L,S),k=layout.k,numeric=Number(L.id)||2;
+  const moving=interactionFX.enabled(S);
+  const entryAge=moving && !ST.used && !ST.bloomed?.length ? time-(ui.enteredAt??-Infinity) : Infinity;
   items.push(item('background',STYLE.bg||'background',360,800,1,1,0,1,0));
   const T=S.bgMotion===false?0:time;
   items.push(item('bush_right','bush_right',663,387.5,1,1,0,1,1),item('bush_left','bush_left',17,288.5,1,1,0,1,1));
@@ -161,11 +165,17 @@ export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
   const frame=frameSprite(layout,S),f=layout.frame;items.push(item('garden_frame',frame,f.x+f.w/2,f.y+f.h/2,1,1,0,1,10));
   for(let r=0;r<L.rows;r++)for(let c=0;c<L.cols;c++){
     if(L.mask&&!L.mask[r*L.cols+c])continue;
-    const pressed=interactionFX.enabled(S)&&!ui.pressed?.hit&&ui.pressed?.c===c&&ui.pressed?.r===r;
+    const pressed=moving&&!ui.pressed?.hit&&ui.pressed?.c===c&&ui.pressed?.r===r;
     const bed = STYLE.beds[soilVariant(c, r)];
-    items.push(item(`soil_${c}_${r}`,bed,layout.cx(c),layout.cy(r)+(pressed?3*k:0),layout.cellW/118*(pressed ? .985:1),layout.cellH/97*(pressed ? .965:1),0,1,20));
+    const enter=entrancePose(entryAge,c,r,layout,L);
+    items.push(item(`soil_${c}_${r}`,bed,layout.cx(c),layout.cy(r)+(pressed?3*k:0)+(enter?.y??0),
+      layout.cellW/118*(pressed ? .985 : 1)*(enter?.sx??1),
+      layout.cellH/97*(pressed ? .965 : 1)*(enter?.sy??1),0,enter?.op??1,20));
   }
-  for(let i=0;i<(ST.vines||[]).length;i++)vinePainter.compose({v:ST.vines[i],index:i,layout,L,S,time,items,motion:interactionFX.enabled(S)});
+  for(let i=0;i<(ST.vines||[]).length;i++)vinePainter.compose({v:ST.vines[i],index:i,layout,L,S,time,items,motion:moving});
+  if(moving&&ui.brushes) for(const leaf of items){
+    if(leaf.id.startsWith('vine_leaf_')&&ui.brushes[leaf.id]) leaf.rot+=.31*brushBend(ui.brushes[leaf.id],time);
+  }
   for(let i=0;i<(ST.moves||[]).length;i++){
     const m=ST.moves[i],age=Math.max(0,time-(m.time||0)),moving=interactionFX.enabled(S),land=clamp((age-.18)/.25),squash=moving?Math.sin(land*Math.PI):0,bounce=squash*7*k,sc=k*(.7+.3*easeOut(age/.2));
     items.push(item('seed_shadow_'+i,'plant_shadow_polished',layout.cx(m.c),layout.cy(m.r)+6*k,k*.55,k*.55,0,.70,38));
@@ -174,19 +184,25 @@ export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
   }
   for(const fl of L.flowers||[]){
     const color=['pink','purple','blue','orange','white'].includes(fl.color)?fl.color:'pink',opened=(ST.bloomed||[]).includes(fl.id),at=ST.bloomTimes?.[fl.id]??-100;
-    const moving=interactionFX.enabled(S),arrived=opened&&time>=at;
+    const arrived=opened&&time>=at;
     const p=arrived?(moving?clamp((time-at)/((+S.bloomMs||350)/1000)):1):0,sc=k*(+S.flowerScale||1),x=layout.cx(fl.c),y=layout.cy(fl.r);
-    items.push(item(fl.id+'_shadow','plant_shadow_polished',x,y+3*k,k*.70,k*.70,0,.72,38));
-    const sway=moving?Math.sin(time*1.5+fl.c*.9+fl.r*1.7)*.011:0;
+    const enter=entrancePose(entryAge,fl.c,fl.r,layout,L,true);
+    const opacity=enter?.op??1, entryY=enter?.y??0;
+    items.push(item(fl.id+'_shadow','plant_shadow_polished',x,y+3*k,k*.70*(enter?.sx??1),k*.70,0,.72*opacity,38));
+    const brush=ui.brushes?.[fl.id],pose=flowerPose(fl,time,moving,brush);
+    const sway=pose.stem;
     const budAmount=1-clamp((p-.08)/.48);
-    if(budAmount>0)items.push(item(fl.id+'_bud','bud_'+color,x,y,sc*(1-p*.14),sc*(1-p*.22),sway+Math.sin(p*Math.PI*2)*.035,budAmount,50));
+    if(budAmount>0)items.push(item(fl.id+'_bud','bud_'+color,x,y+entryY,
+      sc*(1-p*.14)*(1+pose.breath)*(enter?.sx??1),sc*(1-p*.22)*(1+pose.breath)*(enter?.sy??1),
+      sway+Math.sin(p*Math.PI*2)*.035,budAmount*opacity,50));
     if(p>0){
       const roots=easeOut(p/.72),settle=Math.sin(p*TAU)*.045*(1-p);
-      items.push(item(fl.id+'_leaves','flower_leaves',x,y,sc*(.62+.38*roots),sc*(.62+.38*roots),sway-settle,clamp(p*3),49));
-      const tilt=sway+settle+Math.sin(fl.c*2.1+fl.r*.93)*.075;
-      composeFlower({item,items,id:fl.id,color,x:x+Math.sin(sway+settle)*32*k,
-        y:y-39*k-(1-easeOut(p))*(64*sc-39*k),scale:sc,rotation:tilt,progress:p});
-      interactionFX.bloom({fl,x,y,k,time,at,S,items});
+      items.push(item(fl.id+'_leaves','flower_leaves',x,y,sc*(.62+.38*roots),sc*(.62+.38*roots),pose.leaves-settle,clamp(p*3),49));
+      const tilt=pose.face+settle+Math.sin(fl.c*2.1+fl.r*.93)*.075;
+      const flowerX=x+Math.sin(sway+settle)*43*sc;
+      composeFlower({item,items,id:fl.id,color,x:flowerX,
+        y:y-39*k-(1-easeOut(p))*(64*sc-39*k),scale:sc*(1+pose.breath),rotation:tilt,progress:p});
+      interactionFX.bloom({fl,x:flowerX,y,k,time,at,S,items});
     }
   }
   const prev=ui.preview;

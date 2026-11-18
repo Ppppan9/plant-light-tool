@@ -4,15 +4,11 @@
 
 从 GitHub 选择 **Code → Download ZIP**，解压后用 Chrome 或 Edge 打开 `index.html` 即可离线游玩。
 
-**v1.3 手机试玩**：按住并拖动落点，暖金轮廓标出这一步能开花的花苞。松手后藤蔓向外生长，五片花瓣先后舒展，露出金色花心。选用水壶时，目标改为青色，第一滴水落地后根部的泥土短暂变深。减少动态效果模式保留静态标记，花朵直接显示完整花冠。
+**v1.4 手机试玩**。每关开始时，土块从左上往右下依次落位，花苞从土里探出，随后各自轻摆。手指划过花冠或藤叶，碰到的那一株会顺势弯下，移开后轻轻回弹。入场时就可以按住空地瞄准，松手落种。
 
-<img src="screenshots/garden-motion.webp" width="375" alt="第 2 关手机实录：滑动预览改变目标，落种后四朵花沿藤依次展开">
+<img src="screenshots/flower-touch.webp" width="375" alt="第 10 关手机试玩，土块入场、种子落地、藤蔓生长以及手指轻拨开花的植物">
 
-<p>
-  <img src="screenshots/detail-preview.png" width="220" alt="按住空格预览种植方向">
-  <img src="screenshots/detail-bloom.png" width="220" alt="种子长出的藤蔓和已经绽放的花朵">
-  <img src="screenshots/detail-water.png" width="220" alt="用水壶浇灌一朵花苞">
-</p>
+藤蔓从根部向外变细，沿弯曲的茎长出成对的叶片和卷须。播种时土屑弹开，抽藤时碎叶从嫩梢飘落，花开时花粉上扬、同色花瓣碎片翻落。可以在「花园 / 美术」中调整粒子强度，也可以单独关闭粒子。[生长动图](screenshots/vine-particles.webp) · [同关卡新旧藤蔓对照](screenshots/vine-comparison.jpg)
 
 ## 打开与操作
 
@@ -96,6 +92,7 @@ npm run test:3d
 npm run test:h5
 npm run test:cursor
 npm run test:motion
+npm run test:garden
 # 或 npm run test:all
 ```
 
