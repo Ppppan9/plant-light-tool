@@ -4,8 +4,8 @@ const clamp=v=>Math.max(0,Math.min(1,v));
 const ease=v=>1-(1-clamp(v))**3;
 const TAU=Math.PI*2;
 export function createInteractionFX({sprite,item}){
-  const reduce=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const enabled=S=>S.interactionMotion!==false&&!reduce;
+  const motionPreference=typeof matchMedia==='function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const enabled=S=>S.interactionMotion!==false&&!motionPreference?.matches;
   function install(){
     sprite('fx_watering_can',206,164,g=>{
       g.lineCap='round';g.lineJoin='round';g.save();g.shadowColor='rgba(25,91,112,.22)';g.shadowBlur=4;g.shadowOffsetY=4;
@@ -22,6 +22,19 @@ export function createInteractionFX({sprite,item}){
     sprite('fx_growth_glow',52,52,g=>{const q=g.createRadialGradient(26,26,2,26,26,26);q.addColorStop(0,'rgba(249,255,201,.55)');q.addColorStop(.25,'rgba(211,249,145,.35)');q.addColorStop(1,'rgba(218,251,144,0)');g.fillStyle=q;g.fillRect(0,0,52,52);});
     sprite('fx_water_drop',18,26,g=>{g.beginPath();g.moveTo(9,1);g.bezierCurveTo(8,6,1,12,2,18);g.bezierCurveTo(3,27,16,26,16,18);g.bezierCurveTo(17,12,11,5,9,1);let q=g.createLinearGradient(3,2,16,25);q.addColorStop(0,'#f1ffff');q.addColorStop(.35,'#a4e4ee');q.addColorStop(1,'#5bbacb');g.fillStyle=q;g.fill();g.fillStyle='rgba(255,255,255,.8)';g.beginPath();g.ellipse(6,15,1.5,4,.35,0,TAU);g.fill();});
     sprite('fx_water_splash',94,30,g=>{g.strokeStyle='rgba(184,239,240,.8)';g.lineWidth=3;g.beginPath();g.ellipse(47,15,41,8,0,0,TAU);g.stroke();});
+    sprite('soil_damp',100,48,g=>{
+      // Feather the edge against the custom soil colour. The light comes from
+      // the same upper-left direction as the garden tiles.
+      g.translate(50,24);g.scale(1,.43);
+      const pigment=g.createRadialGradient(-4,-1,4,0,0,47);
+      pigment.addColorStop(0,'rgba(89,57,38,.56)');
+      pigment.addColorStop(.57,'rgba(100,63,41,.42)');
+      pigment.addColorStop(.84,'rgba(110,71,45,.23)');
+      pigment.addColorStop(1,'rgba(110,71,45,0)');
+      g.fillStyle=pigment;g.fillRect(-50,-52,100,104);
+      g.strokeStyle='rgba(239,220,167,.38)';g.lineWidth=1.8;g.lineCap='round';
+      g.beginPath();g.ellipse(-11,0,15,8,-.25,3.2,4.65);g.stroke();
+    });
     sprite('fx_bloom_halo',140,140,g=>{const q=g.createRadialGradient(70,70,10,70,70,70);q.addColorStop(0,'rgba(255,242,157,.28)');q.addColorStop(.55,'rgba(250,243,170,.17)');q.addColorStop(1,'rgba(255,244,171,0)');g.fillStyle=q;g.fillRect(0,0,140,140);});
     for(const [name,color]of [['valid','#fffde1'],['invalid','#dd7961'],['water','#acf0f1']])sprite('fx_focus_'+name,108,92,g=>{g.strokeStyle=color;g.lineWidth=3.5;g.lineCap='round';for(const [x,y,sx,sy]of[[10,12,1,1],[98,12,-1,1],[10,80,1,-1],[98,80,-1,-1]]){g.beginPath();g.moveTo(x,y+sy*17);g.lineTo(x,y+sy*5);g.quadraticCurveTo(x,y,x+sx*5,y);g.lineTo(x+sx*23,y);g.stroke();}});
     sprite('plant_root_sprout',58,37,g=>{for(const [x,y,c]of[[20,4,'#91cf5b'],[30,0,'#abd975'],[39,11,'#6fb84a']]){const q=g.createLinearGradient(x,y,x,34);q.addColorStop(0,c);q.addColorStop(1,'#539a37');g.fillStyle=q;g.beginPath();g.moveTo(29,35);g.quadraticCurveTo(x-10,y+9,x,y);g.quadraticCurveTo(x+8,y+10,29,35);g.fill();}});
@@ -42,6 +55,11 @@ export function createInteractionFX({sprite,item}){
         const p=clamp((age-.1)/.5);if(age>.1)for(let n=0;n<7;n++){const a=n*2.41,spread=(14+17*p)*k;items.push(item(id+'_crumb_'+n,'fx_soil_crumb',x+Math.cos(a)*spread,y-4*k+Math.sin(a)*spread*.3-Math.sin(p*Math.PI)*(13+n%3*5)*k,k*(.35+n%3*.1),k*(.35+n%3*.1),a+p*2,(1-p)*.8,42));}
       }
       if(ev.kind==='invalid'&&age<.42){const p=age/.42;items.push(item(id,'fx_focus_invalid',x+Math.sin(p*TAU*2)*3*k*(1-p),y,k*.97,k*.97,0,(1-p)*.85,69));}
+      if(ev.kind==='water'&&age>.28&&age<1.85){
+        const spread=ease((age-.28)/.44),fade=1-ease((age-1.05)/.80);
+        const scale=k*(.24+.70*spread);
+        items.push(item(id+'_earth','soil_damp',x,y+3*k,scale,scale,-.04,spread*fade,25));
+      }
       if(ev.kind==='water'&&age<1.2){
         const p=clamp(age/1.2),enter=ease(p/.18),leave=1-ease((p-.72)/.28);
         const side=x<180*k?1:-1;items.push(item(id+'_can','fx_watering_can',x+side*(78+(1-enter)*40)*k,y-123*k-(1-leave)*35*k,-side*k*.75,k*.75,-side*.27*enter*leave,Math.min(enter,leave),76));

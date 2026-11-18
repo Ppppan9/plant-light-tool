@@ -45,8 +45,12 @@ async function runSuite(page,label,dir,{record=false}={}){
   await page.mouse.move(gp.x,gp.y);await page.mouse.down();await frames(page);const gridDown=await take('grid-down');
   eq(gridDown.pressed?.c,origin.c,label+' 按下格子记录列');eq(gridDown.pressed?.r,origin.r,label+' 按下格子记录行');
   check(gridDown.items.find(i=>i.id===soilBefore.id).sy<soilBefore.sy,label+' 土格按下发生压缩');
+  const expected = await page.evaluate(({c,r})=>__app.core.preview(__app.L,__app.ST,c,r).blooms,origin);
+  const marked = gridDown.items.filter(i=>i.id.startsWith('preview_target_')).map(i=>i.id.slice('preview_target_'.length));
+  check(expected.length > 0 && expected.length === marked.length && expected.every(id=>marked.includes(id)), label+' 按下只标记本次能开花的花苞');
   const stageBox=await page.locator('#stage').boundingBox();await page.mouse.move(stageBox.x-8,stageBox.y+stageBox.height*.55);await page.mouse.up();await frames(page);
   const cancel=await take('off-board-release');eq(cancel.pressed,null,label+' 移出舞台松手清除 pressed');eq(cancel.used,0,label+' 移出舞台松手不耗种');
+  check(!cancel.items.some(i=>i.id.startsWith('preview_')),label+' 取消后清除目标轮廓和路径');
 
   stage(label+' · 非法落点与落种 / 花数时序');
   await reset(page);const flower=(await read(page)).flowers[0];await clickCell(page,flower.c,flower.r);const invalid=await take('invalid');
@@ -75,15 +79,37 @@ async function runSuite(page,label,dir,{record=false}={}){
   await page.waitForTimeout(205);const pouring=await take('water-pouring');check(pouring.items.some(i=>/^fx_water_.*_drop_/.test(i.id)&&i.asset==='fx_water_drop'),label+' 浇水中存在独立水滴');check(pouring.items.some(i=>/^fx_water_.*_can$/.test(i.id)),label+' 水滴出现时水壶仍可见');await shot(page,dir,'watering');
   await page.waitForTimeout(2100);const cleaned=await take('water-cleaned');eq(cleaned.feedback.length,0,label+' 两秒后反馈事件已清理');eq(cleaned.items.filter(eventFx).length,0,label+' 演出结束无残留瞬态fx');
 
+  // A slow bloom gives real mouse input the same generous sampling window on busy machines.
+  await reset(page, '12', {bloomMs: 2000});
+  await clickHit(page, 'water');
+  await clickCell(page, target.c, target.r);
+  await page.waitForFunction(id => __app.items.some(i => i.id === id+'_disk' && i.op > .25), target.id);
+  const opening = await read(page);
+  const petals = opening.items.filter(i=>i.id.startsWith(target.id+'_petal_'));
+  check(petals.length === 5 && new Set(petals.map(i=>i.sy.toFixed(3))).size > 1, label+' 五片花瓣以不同进度展开');
+  check(opening.items.some(i=>i.asset==='soil_damp' && i.op>0), label+' 水滴落下后土面变深');
+  await clickHit(page, 'undo');
+  const canceledWater = await read(page);
+  check(!canceledWater.items.some(i=>i.asset==='soil_damp' || i.asset==='fx_watering_can'), label+' 中途撤销浇水清除湿土和水壶');
+  check(canceledWater.bloomed.length===0 && canceledWater.items.some(i=>i.id.startsWith('fx_undo_') && i.asset.startsWith('flower_petal_')), label+' 半开时撤销能收回已展开的花瓣');
+
   stage(label+' · 撤销仅回收移除分枝 / 立即再次种植');
   await reset(page,'10',{growMs:350,bloomMs:200});const plan=await page.evaluate(()=>__app.core.solve(__app.L,__app.ST));check(plan.length>=3,label+' 撤销回归使用至少三步的真实关卡');
-  await clickCell(page,plan[0].c,plan[0].r);await page.waitForTimeout(650);const one=await take('first-branch-settled'),firstVines=one.vines.length;
-  await clickCell(page,plan[1].c,plan[1].r);await page.waitForTimeout(650);const two=await take('second-branch-settled');eq(two.used,2,label+' 两次种植形成两个独立根系');eq(two.status,'playing',label+' 撤销前仍可继续游玩');
-  const removedBloom=two.bloomed.filter(id=>!one.bloomed.includes(id)),required=two.items.filter(i=>{const index=branchIndex(i.id);return index!==null?index>=firstVines:i.id==='seed_1'||i.id==='seed_sprout_1'||removedBloom.some(id=>i.id===id+'_bloom'||i.id===id+'_leaves');}).map(i=>i.id);
+  const settled=()=>page.waitForFunction(()=>__app.ST.bloomed.every(id=>__app.items.some(it=>it.id===id+'_bloom'&&it.op===1)) && __app.ST.vines.every(v=>performance.now()/1000>=v.time+v.duration));
+  await clickCell(page,plan[0].c,plan[0].r);await settled();const one=await take('first-branch-settled'),firstVines=one.vines.length;
+  await clickCell(page,plan[1].c,plan[1].r);await settled();const two=await take('second-branch-settled');eq(two.used,2,label+' 两次种植形成两个独立根系');eq(two.status,'playing',label+' 撤销前仍可继续游玩');
+  const removedBloom=two.bloomed.filter(id=>!one.bloomed.includes(id));
+  const fromRemovedMove=i=>{
+    const index=branchIndex(i.id);
+    if(index!==null)return index>=firstVines;
+    if(i.id==='seed_1'||i.id==='seed_sprout_1')return true;
+    return removedBloom.some(id=>i.id===id+'_bloom'||i.id===id+'_leaves');
+  };
+  const required=two.items.filter(fromRemovedMove).map(i=>i.id);
   await clickHit(page,'undo');const undo=await take('undo-active'),ue=[...undo.feedback].reverse().find(e=>e.kind==='undo'),ghosts=ue?.ghosts||[],ghostIds=ghosts.map(i=>i.id);
   eq(undo.used,1,label+' 撤销恢复上一颗种子状态');eq(undo.vines.length,one.vines.length,label+' 撤销仅移除第二根系藤蔓');check(ghosts.length>0,label+' 撤销存在ghost快照');
   check(required.every(id=>ghostIds.includes(id)),label+' 被移除主藤/叶/小枝/小花/种子完整进入ghost',{missing:required.filter(id=>!ghostIds.includes(id))});
-  check(ghosts.every(i=>{const index=branchIndex(i.id);return index!==null?index>=firstVines:i.id==='seed_1'||i.id==='seed_sprout_1'||removedBloom.some(id=>i.id===id+'_bloom'||i.id===id+'_leaves');}),label+' ghost只含被移除分枝而无保留分枝/棋盘/HUD',{unexpected:ghosts.filter(i=>{const index=branchIndex(i.id);return index!==null?index<firstVines:!(i.id==='seed_1'||i.id==='seed_sprout_1'||removedBloom.some(id=>i.id===id+'_bloom'||i.id===id+'_leaves'));}).map(i=>i.id)});
+  check(ghosts.every(fromRemovedMove),label+' 满开后撤销只回收被移除分枝，不含保留分枝/棋盘/HUD',{unexpected:ghosts.filter(i=>!fromRemovedMove(i)).map(i=>i.id)});
   eq(new Set(ghostIds).size,ghostIds.length,label+' 每个移除精灵只生成一次ghost');check(undo.items.some(i=>/^fx_undo_/.test(i.id)),label+' 撤销快照已进入真实渲染列表');
   const ghostCount=undo.items.filter(i=>/^fx_undo_/.test(i.id)).length;eq(ghostCount,ghosts.length,label+' ghost快照与实际绘制一一对应');
   // Replant while the old removal effect is still alive. Retained branch IDs and transforms stay intact.

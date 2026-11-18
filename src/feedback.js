@@ -39,6 +39,16 @@ export function createFeedback(ui, clock=()=>performance.now()/1000){
   }
   function emit(kind,data={},at=clock()){
     prune(at);
+    if(kind==='undo'){
+      // A quick undo may land before the first drop or the seed hits the soil.
+      for(let i=ui.feedback.length-1;i>=0;i--){
+        const e=ui.feedback[i];
+        if((e.kind==='water'||e.kind==='plant')&&e.c===data.c&&e.r===data.r){
+          ui.feedback.splice(i,1);
+          break;
+        }
+      }
+    }
     const event={...data,id:++serial,kind,time:at,c:data.c??null,r:data.r??null};
     ui.feedback.push(event);
     if(ui.feedback.length>24)ui.feedback.splice(0,ui.feedback.length-24);
@@ -70,7 +80,9 @@ export function undoFeedback(before,after,items,level){
     if(vine)return removedVines.has(+vine[1]);
     const seed=/^seed_(?:sprout_)?(\d+)$/.exec(id);
     if(seed)return removedMoves.has(+seed[1]);
-    for(const flower of removedBlooms)if(id===flower+'_bloom'||id===flower+'_leaves')return true;
+    for(const flower of removedBlooms){
+      if(id===flower+'_bloom'||id===flower+'_leaves'||id===flower+'_disk'||id.startsWith(flower+'_petal_'))return true;
+    }
     return false;
   }).map(it=>({...it}));
   const removedMove=removedMoves.size?before.moves[Math.max(...removedMoves)]:null;

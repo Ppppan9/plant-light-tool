@@ -19,12 +19,15 @@ import VINE_LEAF_B from './art-assets/polished/leaf-b.webp';
 import FLOWER_ROOT from './art-assets/polished/leaf-root.webp';
 import SEED_ROOT from './art-assets/polished/seed.webp';
 import {createVinePainter} from './botanical.js';
+import {installFlower,composeFlower} from './flower-bloom.js';
 import {createInteractionFX} from './interaction-fx.js';
 import {preview as previewPlant} from './core.js';
+import {paintAimPreview} from './aim-preview.js';
 import GRASS_TUFT from './art-assets/grass-tuft.png';
 import BUSH_RIGHT from './art-assets/bush-right.png';
 import BUSH_LEFT from './art-assets/bush-left.png';
 import WATERING_CAN from './art-assets/watering-can.png';
+import {installSoilSurfaces, soilVariant} from './garden-soil.js';
 
 export const DW=720,DH=1600;
 const TAU=Math.PI*2, A={}, SOURCES={};
@@ -66,7 +69,7 @@ export async function createAssets(S={}){
   await Promise.all(Object.entries(urls).map(async([k,url])=>{if(!SOURCES[k]){const im=new Image();im.src=url;await im.decode();SOURCES[k]=im;}}));
   for(const [key,im]of Object.entries(SOURCES)){
     if(key.startsWith('bud_'))sprite(key,126,150,g=>g.drawImage(im,0,0,126,150),63,135.9375);
-    else if(key.startsWith('flower_')&&key!=='flower_root')sprite(key,126,126,g=>g.drawImage(im,0,0,126,126));
+    else if(key.startsWith('flower_')&&key!=='flower_root')installFlower(sprite,key.slice(7),im);
     else if(!['vine_leaf','vine_leaf_b','flower_root','seed_art'].includes(key))imageSprite(key,im);
   }
   sprite('flower_leaves',116,65.25,g=>g.drawImage(SOURCES.flower_root,0,0,116,65.25),58,52.5625);
@@ -85,6 +88,7 @@ export async function createAssets(S={}){
     if(colors.top!=='#72b945'||colors.mid!=='#54a437'||colors.bottom!=='#216f25'){g.globalAlpha=.55;g.fillStyle=p;g.fillRect(0,0,720,1600);g.globalAlpha=1;}
   });
   sprite(STYLE.tile,118,97,g=>{g.drawImage(SOURCES.soil,0,0,118,97);if(colors.tile.toLowerCase()!=='#d59c69'){g.globalCompositeOperation='source-atop';g.globalAlpha=.55;g.fillStyle=colors.tile;g.fillRect(0,0,118,97);g.globalAlpha=1;g.globalCompositeOperation='source-over';}});
+  STYLE.beds = installSoilSurfaces(sprite, STYLE.tile, A[STYLE.tile].c);
   sprite('grass_clump',75,80,g=>{g.save();g.filter='blur(3px)';g.fillStyle='rgba(18,76,18,.23)';g.beginPath();g.ellipse(39,67,27,9,0,0,TAU);g.fill();g.restore();drawLeaf(g,29,45,14,48,-.28,'#80c745');drawLeaf(g,46,54,13,35,.33,'#75be3a');drawLeaf(g,21,59,12,24,-.65,'#6fb139');});
   sprite('bush',270,260,g=>{g.save();g.filter='blur(4px)';g.shadowColor='rgba(11,78,19,.35)';g.shadowBlur=12;g.shadowOffsetY=11;const p=g.createRadialGradient(77,67,8,140,139,145);p.addColorStop(0,'#9fdb6a');p.addColorStop(.45,'#5aba4f');p.addColorStop(1,'#269332');g.fillStyle=p;g.beginPath();g.ellipse(124,135,114,104,-.3,0,TAU);g.fill();g.restore();});
   sprite('small_flower',50,50,g=>{for(let i=0;i<5;i++){const a=-Math.PI/2+i*TAU/5,x=25+Math.cos(a)*10,y=25+Math.sin(a)*10;g.fillStyle=gradient(g,y-8,y+9,'#ffc9e8','#ef83ba');g.beginPath();g.ellipse(x,y,8,9,a,0,TAU);g.fill();}g.fillStyle='#ffe578';g.beginPath();g.arc(25,25,6,0,TAU);g.fill();});
@@ -158,7 +162,8 @@ export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
   for(let r=0;r<L.rows;r++)for(let c=0;c<L.cols;c++){
     if(L.mask&&!L.mask[r*L.cols+c])continue;
     const pressed=interactionFX.enabled(S)&&!ui.pressed?.hit&&ui.pressed?.c===c&&ui.pressed?.r===r;
-    items.push(item(`soil_${c}_${r}`,STYLE.tile,layout.cx(c),layout.cy(r)+(pressed?3*k:0),layout.cellW/118*(pressed ? .985:1),layout.cellH/97*(pressed ? .965:1),0,1,20));
+    const bed = STYLE.beds[soilVariant(c, r)];
+    items.push(item(`soil_${c}_${r}`,bed,layout.cx(c),layout.cy(r)+(pressed?3*k:0),layout.cellW/118*(pressed ? .985:1),layout.cellH/97*(pressed ? .965:1),0,1,20));
   }
   for(let i=0;i<(ST.vines||[]).length;i++)vinePainter.compose({v:ST.vines[i],index:i,layout,L,S,time,items,motion:interactionFX.enabled(S)});
   for(let i=0;i<(ST.moves||[]).length;i++){
@@ -169,23 +174,25 @@ export function composeFrame({L,ST,S={},time=0,ui={},hand=null}){
   }
   for(const fl of L.flowers||[]){
     const color=['pink','purple','blue','orange','white'].includes(fl.color)?fl.color:'pink',opened=(ST.bloomed||[]).includes(fl.id),at=ST.bloomTimes?.[fl.id]??-100;
-    const p=opened?clamp((time-at)/((+S.bloomMs||350)/1000)):0,sc=k*(+S.flowerScale||1),x=layout.cx(fl.c),y=layout.cy(fl.r);
+    const moving=interactionFX.enabled(S),arrived=opened&&time>=at;
+    const p=arrived?(moving?clamp((time-at)/((+S.bloomMs||350)/1000)):1):0,sc=k*(+S.flowerScale||1),x=layout.cx(fl.c),y=layout.cy(fl.r);
     items.push(item(fl.id+'_shadow','plant_shadow_polished',x,y+3*k,k*.70,k*.70,0,.72,38));
-    const sway=interactionFX.enabled(S)?Math.sin(time*1.5+fl.c*.9+fl.r*1.7)*.011:0;
-    if(p<1)items.push(item(fl.id+'_bud','bud_'+color,x,y,sc*(1-p*.1),sc*(1-p*.1),sway+Math.sin(p*Math.PI*2)*.025,(1-p)**1.35,50));
+    const sway=moving?Math.sin(time*1.5+fl.c*.9+fl.r*1.7)*.011:0;
+    const budAmount=1-clamp((p-.08)/.48);
+    if(budAmount>0)items.push(item(fl.id+'_bud','bud_'+color,x,y,sc*(1-p*.14),sc*(1-p*.22),sway+Math.sin(p*Math.PI*2)*.035,budAmount,50));
     if(p>0){
-      const unfurl=easeOut(p),pop=(.40+.60*unfurl)*(1+Math.sin(p*Math.PI)*.08);
-      const roots=easeOut(clamp((p-.12)/.88)),settle=interactionFX.enabled(S)?Math.sin(p*TAU)*.055*(1-p):0;
-      items.push(item(fl.id+'_leaves','flower_leaves',x,y,sc*(.62+.38*roots),sc*(.62+.38*roots),sway-settle,clamp(p*2),49));
-      items.push(item(fl.id+'_bloom','flower_'+color,x+Math.sin(sway+settle)*32*k,y-(22+18*unfurl)*k,sc*pop,sc*pop,sway+settle+Math.sin(p*Math.PI)*.04,clamp(p*2),55));
+      const roots=easeOut(p/.72),settle=Math.sin(p*TAU)*.045*(1-p);
+      items.push(item(fl.id+'_leaves','flower_leaves',x,y,sc*(.62+.38*roots),sc*(.62+.38*roots),sway-settle,clamp(p*3),49));
+      const tilt=sway+settle+Math.sin(fl.c*2.1+fl.r*.93)*.075;
+      composeFlower({item,items,id:fl.id,color,x:x+Math.sin(sway+settle)*32*k,
+        y:y-39*k-(1-easeOut(p))*(64*sc-39*k),scale:sc,rotation:tilt,progress:p});
       interactionFX.bloom({fl,x,y,k,time,at,S,items});
     }
   }
   const prev=ui.preview;
   if(prev&&S.showPreview!==false&&!ui.helper){
-    const preview=previewPlant(L,ST,prev.c,prev.r),pulse=interactionFX.enabled(S)?1+Math.sin(time*7)*.035:1;
-    if(preview.ok&&!ui.waterMode)for(const {c,r}of preview.cells){items.push(item('preview_cell_'+c+'_'+r,'preview_cell',layout.cx(c),layout.cy(r),layout.cellW/118,layout.cellH/97,0,.72,27));if(c!==prev.c||r!==prev.r)items.push(item('preview_line_'+c+'_'+r,'preview_line',layout.cx(c),layout.cy(r),k*.6,layout.cellH/128,c===prev.c?0:Math.PI/2,.52,28));}
-    items.push(item('preview_origin','fx_focus_'+(ui.waterMode?'water':preview.ok?'valid':'invalid'),layout.cx(prev.c),layout.cy(prev.r),k*pulse,k*pulse,0,.9,66));
+    paintAimPreview({preview:previewPlant(L,ST,prev.c,prev.r),origin:prev,level:L,state:ST,ui,
+      settings:S,time,moving:interactionFX.enabled(S),layout,items,assets:A,sprite,item});
   }
   if(ui.hint){const sc=k*(.85+(interactionFX.enabled(S)?.06*Math.sin(time*6):0));items.push(item('hint','hint_ring',layout.cx(ui.hint.c),layout.cy(ui.hint.r),sc,sc,0,1,67));}
   if(ST.status==='lost'){

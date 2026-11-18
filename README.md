@@ -4,6 +4,10 @@
 
 从 GitHub 选择 **Code → Download ZIP**，解压后用 Chrome 或 Edge 打开 `index.html` 即可离线游玩。
 
+**v1.3 手机试玩**：按住并拖动落点，暖金轮廓标出这一步能开花的花苞。松手后藤蔓向外生长，五片花瓣先后舒展，露出金色花心。选用水壶时，目标改为青色，第一滴水落地后根部的泥土短暂变深。减少动态效果模式保留静态标记，花朵直接显示完整花冠。
+
+<img src="screenshots/garden-motion.webp" width="375" alt="第 2 关手机实录：滑动预览改变目标，落种后四朵花沿藤依次展开">
+
 <p>
   <img src="screenshots/detail-preview.png" width="220" alt="按住空格预览种植方向">
   <img src="screenshots/detail-bloom.png" width="220" alt="种子长出的藤蔓和已经绽放的花朵">
