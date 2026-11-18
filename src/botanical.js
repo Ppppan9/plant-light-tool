@@ -32,6 +32,7 @@ function foliage(seed,dist,k,dy) {
 
 export function createVinePainter({sprite,item}) {
   const stemPaintings=new Map();
+  let lastWarmTime=-Infinity;
   function install() {
     installVineArt(sprite);
     installVineTrim(sprite);
@@ -46,53 +47,67 @@ export function createVinePainter({sprite,item}) {
     const width=(+S.vineWidth||14)*2.1*k,age=time-(v.time||0),duration=v.duration||(+S.growMs||500)/1000;
     const length=dist*ease(age/duration),bodyDist=Math.max(dist*.65,dist-.73*width);
     const curve=s=>{const envelope=clamp(s/(32*k))*clamp((dist-s)/(33*k));return (Math.sin(s/(170*k)*TAU+phase)*(dy?4.8:2.0)+Math.sin(s/(104*k)*TAU+phase*.54)*.85)*k*envelope;};
-    const point=s=>({x:dx*s-dy*curve(s),y:dy*s+dx*curve(s)});
+    const point=s=>{const bend=curve(s);return{x:dx*s-dy*bend,y:dy*s+dx*bend};};
     const stemKey=`${dx}_${dy}_${dist.toFixed(2)}_${k.toFixed(3)}_${width.toFixed(2)}_${seed}`;
     let painting=stemPaintings.get(stemKey);
     if(!painting){
+      // During the seed drop, prepare just one invisible direction per frame.
+      // A seek or a late frame still paints every visible direction immediately.
+      if(length===0){if(lastWarmTime===time)return;lastWarmTime=time;}
       const trim=foliage(seed,dist,k,dy);
       painting={...paintStem({point,dist:bodyDist,width,k,phase}),...trim};
       stemPaintings.set(stemKey,painting);
     }
+    let geometry=painting.geometry;
+    if(!geometry||geometry.dist!==dist||geometry.k!==k||geometry.width!==width){
+      const stations=list=>list.map(st=>({...st,p:point(st.s),arrival:1-Math.cbrt(1-clamp(st.s/dist))}));
+      geometry=painting.geometry={dist,k,width,slices:[],tufts:stations(painting.tufts),leaves:stations(painting.leaves),flowers:stations(painting.flowers)};
+    }
+    if(!length)return;
     const tipScale=width/30*clamp(length/width),bodyLength=Math.max(0,length-.73*width*clamp(length/width));
     const count=Math.ceil(bodyDist/(48*k)),step=bodyDist/count;
     for(let n=0;n<count;n++){
       const start=n*step,end=(n+1)*step,part=clamp((bodyLength-start)/(end-start));if(part<=0)break;
-      const origin=point(start),pad=width/2+7*k;
-      const lo=dx?Math.min(dx*start,dx*end):Math.min(dy*start,dy*end),hi=dx?Math.max(dx*start,dx*end):Math.max(dy*start,dy*end);
-      const lowOutside=(dx||dy)>0?n===0:n===count-1,highOutside=(dx||dy)>0?n===count-1:n===0;
-      const begin=Math.floor((lo-(lowOutside?pad:.5))*2)/2,finish=Math.ceil((hi+(highOutside?pad:.5))*2)/2;
-      const cropX=dx?Math.max(painting.minX,begin):painting.minX,cropY=dy?Math.max(painting.minY,begin):painting.minY;
-      const w=dx?Math.min(painting.minX+painting.w,finish)-cropX:painting.w,h=dy?Math.min(painting.minY+painting.h,finish)-cropY:painting.h;
-      const key=`vine_stem_polished_${stemKey}_${n}`;
-      sprite(key,w,h,g=>g.drawImage(painting.c,(cropX-painting.minX)*2,(cropY-painting.minY)*2,w*2,h*2,0,0,w,h),origin.x-cropX,origin.y-cropY);
-      items.push(item(`vine_${index}_${n}`,key,x0+origin.x,y0+origin.y,dx?part:1,dy?part:1,0,1,30));
+      let slice=geometry.slices[n];
+      if(!slice){
+        const origin=point(start),pad=width/2+7*k;
+        const lo=dx?Math.min(dx*start,dx*end):Math.min(dy*start,dy*end),hi=dx?Math.max(dx*start,dx*end):Math.max(dy*start,dy*end);
+        const lowOutside=(dx||dy)>0?n===0:n===count-1,highOutside=(dx||dy)>0?n===count-1:n===0;
+        const begin=Math.floor((lo-(lowOutside?pad:.5))*2)/2,finish=Math.ceil((hi+(highOutside?pad:.5))*2)/2;
+        const cropX=dx?Math.max(painting.minX,begin):painting.minX,cropY=dy?Math.max(painting.minY,begin):painting.minY;
+        const w=dx?Math.min(painting.minX+painting.w,finish)-cropX:painting.w,h=dy?Math.min(painting.minY+painting.h,finish)-cropY:painting.h;
+        const key=`vine_stem_polished_${stemKey}_${n}`;
+        sprite(key,w,h,g=>g.drawImage(painting.c,(cropX-painting.minX)*2,(cropY-painting.minY)*2,w*2,h*2,0,0,w,h),origin.x-cropX,origin.y-cropY);
+        slice=geometry.slices[n]={...origin,key};
+      }
+      items.push(item(`vine_${index}_${n}`,slice.key,x0+slice.x,y0+slice.y,dx?part:1,dy?part:1,0,1,30));
     }
-    const opened=(s,seconds)=>{
-      if(length<s)return 0;
-      const crossed=duration*(1-Math.cbrt(1-clamp(s/dist)));
-      return motion?ease((age-crossed)/seconds):1;
+    const settled=age>=duration+.25;
+    const opened=(station,seconds)=>{
+      if(settled)return 1;
+      if(length<station.s)return 0;
+      return motion?ease((age-duration*station.arrival)/seconds):1;
     };
     const border=width/(29.4*k);
-    for(const [n,t] of painting.tufts.entries()){
-      const q=opened(t.s,.18);if(!q)continue;
-      const p=point(t.s),sc=k*t.size*q;
+    for(const [n,t] of geometry.tufts.entries()){
+      const q=opened(t,.18);if(!q)continue;
+      const p=t.p,sc=k*t.size*q;
       const x=x0+p.x+(dy?t.side*t.offset*k*Math.sqrt(border):0);
       const y=y0+p.y+(dy?(dy>0?17:12)*k:t.side*t.offset*k*Math.sqrt(border)+7*k);
       items.push(item(`vine_sprig_${index}_${n}`,t.variant?'vine_meadow_b':'vine_meadow_a',x,y,sc,sc,t.tilt,q,28));
     }
-    for(const [n,l] of painting.leaves.entries()){
-      const q=opened(l.s,.22);if(!q)continue;
-      const p=point(l.s),x=x0+p.x,y=y0+p.y;
+    for(const [n,l] of geometry.leaves.entries()){
+      const q=opened(l,.22);if(!q)continue;
+      const p=l.p,x=x0+p.x,y=y0+p.y;
       const sc=k*l.size*(.18+.82*q);
       const rot=dy?Math.atan2(l.side*.86,-dy*.68):Math.atan2(dx*.68,-l.side*.82);
       const sway=motion?Math.sin(time*1.6+n*.83+phase)*.018+l.side*(1-q)*.23:0;
       items.push(item(`vine_leaf_${index}_${n}`,l.variant?'vine_blade_b':'vine_blade_a',
         x+(dy?l.side*width*.22:0),y+(dx?l.side*width*.21:0),sc,sc,rot+sway,q,33));
     }
-    for(const [n,f] of painting.flowers.entries()){
-      const q=opened(f.s,.25);if(!q)continue;
-      const p=point(f.s),x=x0+p.x+27*k*Math.sqrt(border),y=y0+p.y;
+    for(const [n,f] of geometry.flowers.entries()){
+      const q=opened(f,.25);if(!q)continue;
+      const p=f.p,x=x0+p.x+27*k*Math.sqrt(border),y=y0+p.y;
       // These are small verge flowers, separate from numbered puzzle goals.
       if(L?.flowers.some(fl=>Math.hypot(x-layout.cx(fl.c),y-(layout.cy(fl.r)-39*k))<43*k))continue;
       const sc=k*f.size*q;

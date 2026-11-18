@@ -1,12 +1,12 @@
 // Contextual feedback stays in the scene graph: editable in AE / 3D as well as
 // visible in the game. No DOM effects or flattened-frame overlays are used.
 import {installGardenParticles,composeSoilParticles,composeBloomParticles,densityCount} from './garden-particles.js';
+import {interactionMotionEnabled} from './feedback.js';
 const clamp=v=>Math.max(0,Math.min(1,v));
 const ease=v=>1-(1-clamp(v))**3;
 const TAU=Math.PI*2;
 export function createInteractionFX({sprite,item}){
-  const motionPreference=typeof matchMedia==='function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-  const enabled=S=>S.interactionMotion!==false&&!motionPreference?.matches;
+  const enabled=interactionMotionEnabled;
   function install(){
     installGardenParticles(sprite);
     sprite('fx_watering_can',206,164,g=>{

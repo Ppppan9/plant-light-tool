@@ -1,7 +1,9 @@
 // Shared transient input/action data. Effects consume these events; game rules do not.
+let reducedMotion;
 export function interactionMotionEnabled(settings={}){
   if(settings.interactionMotion===false)return false;
-  try{return typeof globalThis.matchMedia!=='function'||!globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return true;}
+  reducedMotion ??= globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+  return !reducedMotion?.matches;
 }
 export const interactionDelay=(settings,seconds)=>interactionMotionEnabled(settings)?seconds:0;
 

@@ -6,20 +6,31 @@ export const SFX_NAMES = {
   pick: ['sfxSeed', '播种'], land: ['sfxGrow', '生长'], match: ['sfxBloom', '开花'],
 };
 export const SFX_DUR = { seed:.25, grow:.32, bloom:.65, win:1.7, undo:.32, fail:.65, hint:.5, water:.55, click:.09, pick:.25, land:.32, match:.65 };
+const audible=S=>!S?.sfxMute&&!(+S?.sfxVolume<=0);
 export class Sfx {
   constructor() { this.ctx=null; this._t=null; this.hook=null; }
   ensure() {
     if(this.ctx) return this.ctx;
     const C=window.AudioContext||window.webkitAudioContext; if(!C)return null;
     this.ctx=new C(); this.master=this.ctx.createGain(); this.master.connect(this.ctx.destination);
-    this.recDest=this.ctx.createMediaStreamDestination(); this.master.connect(this.recDest); this.makeNoise(); return this.ctx;
+    return this.ctx;
+  }
+  get recDest() {
+    if(!this._recDest&&this.ctx?.createMediaStreamDestination){
+      this._recDest=this.ctx.createMediaStreamDestination();this.master.connect(this._recDest);
+    }
+    return this._recDest;
+  }
+  prepare(S) {
+    // Open the device during asset loading; the first gesture still resumes it.
+    if(audible(S))try{this.ensure();}catch{/* Some browsers require a gesture to create the context. */}
   }
   makeNoise() {
     const n=Math.round(this.ctx.sampleRate*.8),b=this.ctx.createBuffer(1,n,this.ctx.sampleRate),data=b.getChannelData(0);let x=2463534242;
     for(let i=0;i<n;i++){x^=x<<13;x^=x>>>17;x^=x<<5;data[i]=(x>>>0)/4294967295*2-1;}this.noise=b;
   }
   now(){return this._t!=null?this._t:this.ctx.currentTime;}
-  resume(){const c=this.ensure();if(c&&c.state==='suspended')return c.resume();}
+  resume(S){if(!audible(S))return;const c=this.ensure();if(c&&(c.state==='suspended'||c.state==='interrupted'))return c.resume();}
   play(name,S={},options={}) {
     const [key]=SFX_NAMES[name]||[];if(!key||S.sfxMute||S[key]===false)return;
     const volume=Math.max(0,Number.isFinite(+S.sfxVolume)?+S.sfxVolume:.7);if(!volume)return;
@@ -34,6 +45,7 @@ export class Sfx {
     this.env(g,t,a,v,dur);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+a+dur+.025);
   }
   nz(t,type,f0,f1,q,dur,v,a=.006){
+    if(!this.noise)this.makeNoise();
     const s=this.ctx.createBufferSource(),f=this.ctx.createBiquadFilter(),g=this.ctx.createGain();s.buffer=this.noise;f.type=type;f.frequency.setValueAtTime(Math.max(40,f0),t);
     f.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);f.Q.value=q;this.env(g,t,a,v,dur);s.connect(f);f.connect(g);g.connect(this.master);s.start(t);s.stop(t+a+dur+.025);
   }
@@ -51,7 +63,7 @@ export class Sfx {
 export async function renderSfxOffline(events,duration,S={}){
   const C=window.OfflineAudioContext||window.webkitOfflineAudioContext;if(!C)return null;
   const sr=44100,oc=new C(1,Math.max(1,Math.ceil(sr*Math.max(.2,duration))),sr);
-  const x=new Sfx();x.ctx=oc;x.master=oc.createGain();x.master.connect(oc.destination);x.makeNoise();
+  const x=new Sfx();x.ctx=oc;x.master=oc.createGain();x.master.connect(oc.destination);
   for(const e of events){x._t=Math.max(0,+e.t||0);x.play(e.name,{...S,sfxMute:false},e);}return oc.startRendering();
 }
 export function encodeWav(buffer){
