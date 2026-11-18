@@ -1,21 +1,8 @@
 // 植物光路关卡搭建器：所有 CSS 都限制在 #pl-editor，纯 DOM、离线可用。
 import { validateLevel, normalizeLevel, solve, generateLevel, createState } from './core.js';
-import {icon} from './atlas-icons.js';
-import {editorStyle as CSS} from './atlas-editor-style.js';
 
 const STORAGE_KEY = 'plantLight.levels.v1';
-const PALETTE = [
-  ['pink','粉色','#db9caa',5,'M0 1Q-6-4-5-8Q-4-12 0-9Q4-12 5-8Q6-4 0 1Z'],
-  ['purple','紫色','#a190bb',3,'M0 1Q-6-4-4-9L0-12 4-9Q6-4 0 1Z'],
-  ['blue','蓝色','#87adbe',5,'M0 1Q-4-5-3-8L0-12 3-8Q4-5 0 1Z'],
-  ['orange','橙色','#d89661',6,'M0 1Q-5-4-3-9Q0-12 3-9Q5-4 0 1Z'],
-  ['white','白色','#fcfbeb',8,'M0 1Q-3-4-2.2-8Q0-12 2.2-8Q3-4 0 1Z']
-];
-function specimen(color, swatch=false){
-  const [,,paint,n,petal]=PALETTE.find(p=>p[0]===color)||PALETTE[0];
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',swatch?'4 0 32 32':'0 0 40 40');svg.setAttribute('aria-hidden','true');svg.setAttribute('class',swatch?'ed-pigment':'ed-flower');
-  svg.innerHTML=`${swatch?'':'<g fill="#a7b798" stroke="#4a6354" stroke-width="1"><path d="M20 25q2 6-2 13" fill="none"/><path d="M20 32q-5-6-10-5 2 6 10 5Zm0 2q5-7 10-6-2 5-10 6Z"/></g>'}<g transform="translate(20 16)" fill="${paint}" stroke="#534d45" stroke-width=".75">${Array.from({length:n},(_,i)=>`<path transform="rotate(${i*360/n})" d="${petal}"/>`).join('')}<circle r="2" fill="#d8b86e"/></g>`;return svg;
-}
+const PALETTE = [ ['pink', '粉色', '#ef4c9d'], ['purple', '紫色', '#7652e8'], ['blue', '蓝色', '#32bde5'], ['orange', '橙色', '#fa8651'], ['white', '白色', '#f7f8ff'] ];
 const clone = o => JSON.parse(JSON.stringify(o));
 function validateEditorLevel(raw) {
   const result = validateLevel(raw);
@@ -35,6 +22,37 @@ export function loadCustomLevels() {
   } catch { return []; }
 }
 
+const CSS = `
+#pl-editor{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(19,47,28,.69);backdrop-filter:blur(4px);font:13px/1.5 "PingFang SC","Microsoft YaHei",sans-serif;color:#503a20}
+#pl-editor.open{display:flex}#pl-editor *{box-sizing:border-box}#pl-editor button,#pl-editor input,#pl-editor select{font:inherit}
+#pl-editor .ed-window{width:min(1180px,97vw);height:min(850px,96vh);border:5px solid #805323;border-radius:24px;background:linear-gradient(#fffae9,#f7e9ba);box-shadow:0 12px 0 #4f381b,0 24px 60px #13281688;display:flex;flex-direction:column;overflow:hidden}
+#pl-editor .ed-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:4px solid #805323;background:linear-gradient(#8bc56b,#589247);flex-wrap:wrap}
+#pl-editor .ed-title{font-size:22px;font-weight:900;color:#fff9df;text-shadow:0 2px #3e642f;margin-right:auto}
+#pl-editor button{border:2px solid #754f28;border-bottom-width:4px;border-radius:11px;background:linear-gradient(#c69862,#946137);color:#fff8e7;font-weight:800;padding:6px 11px;cursor:pointer;white-space:nowrap;text-shadow:0 1px #4f361a88}
+#pl-editor button:hover{filter:brightness(1.08)}#pl-editor button:active{transform:translateY(2px);border-bottom-width:2px;margin-bottom:2px}#pl-editor button:disabled{opacity:.4;pointer-events:none}
+#pl-editor button.ed-green{background:linear-gradient(#8ad46a,#4b9b3d);border-color:#366d2d}#pl-editor button.ed-blue{background:linear-gradient(#77b9e7,#3f80b9);border-color:#365d80}#pl-editor button.ed-cream{background:linear-gradient(#fff9df,#edd7a7);color:#68451e;text-shadow:none;border-color:#ae8b54}#pl-editor button.ed-red{background:linear-gradient(#f5907d,#d45a4e);border-color:#8c3e32}
+#pl-editor .ed-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,1.1fr) minmax(340px,1fr);gap:14px;padding:14px;overflow:hidden}
+#pl-editor .ed-preview{min-width:0;display:flex;flex-direction:column;gap:10px;border:3px solid #c8a264;border-radius:18px;background:linear-gradient(#9ac96c,#4e8a41);padding:16px}
+#pl-editor .ed-board{display:grid;gap:4px;width:100%;max-width:490px;margin:auto;aspect-ratio:1;align-content:center;border:11px solid #edc878;border-bottom-width:17px;border-radius:20px;padding:8px;background:#b77743;box-shadow:inset 0 2px 4px #74432066,0 6px #9f6b2d;touch-action:none}
+#pl-editor .ed-cell{position:relative;padding:0;min-width:0;min-height:0;aspect-ratio:1.14;border:0;border-radius:8px;box-shadow:inset 0 -5px 5px #9b5d2e66,inset 1px 2px 2px #ffe0a466,0 2px 1px #79522c99;background:linear-gradient(#cf955e,#dda46e 72%,#e6b47e);text-shadow:none;overflow:visible;cursor:crosshair;outline-offset:-2px}
+#pl-editor .ed-cell:hover{outline:3px solid #fff4ab;filter:brightness(1.07);z-index:2}#pl-editor .ed-cell.hole{opacity:.27;background:repeating-linear-gradient(45deg,#466332 0 5px,#5a7c40 5px 10px);box-shadow:none}
+#pl-editor .ed-cell.ed-hit{outline:4px solid #fff394;box-shadow:0 0 18px #ffed79;z-index:3}
+#pl-editor .ed-flower{position:absolute;width:47%;height:51%;left:27%;top:10%;border-radius:65% 65% 50% 50%;background:radial-gradient(ellipse at 30% 24%,#ffffff80,transparent 60%),var(--plant);filter:drop-shadow(0 2px 1px #794c2870);transform:rotate(0deg);pointer-events:none}
+#pl-editor .ed-flower:before,#pl-editor .ed-flower:after{content:"";position:absolute;top:88%;width:66%;height:38%;background:linear-gradient(145deg,#c2f46e,#4ca940);border-radius:20% 80% 25% 80%;box-shadow:0 2px #347d32}
+#pl-editor .ed-flower:before{right:44%;transform:rotate(5deg)}#pl-editor .ed-flower:after{left:44%;transform:scaleX(-1) rotate(5deg)}
+#pl-editor .ed-coordinate{position:absolute;bottom:2px;right:4px;font:9px/1.2 monospace;color:#6d432678;pointer-events:none}
+#pl-editor .ed-caption{font-size:12px;text-align:center;color:#f3ffe5;font-weight:700;padding:3px 6px;background:#356a354d;border-radius:9px}
+#pl-editor .ed-stats{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}#pl-editor .ed-chip{padding:3px 9px;border-radius:20px;background:#fff8df;border:2px solid #c5a26b;font-size:12px;font-weight:800;color:#6b4b28}
+#pl-editor .ed-side{min-height:0;overflow:auto;padding-right:4px}#pl-editor .ed-card{background:#fffaf0;border:3px solid #d6b575;border-radius:15px;padding:10px 12px;margin-bottom:10px}#pl-editor .ed-card h3{font-size:14px;margin:0 0 8px;color:#765126}
+#pl-editor .ed-row{display:flex;gap:8px;align-items:center;margin:7px 0;flex-wrap:wrap}#pl-editor .ed-row label{min-width:55px;font-weight:700}#pl-editor .ed-row input[type=text]{flex:1;min-width:0}#pl-editor input,#pl-editor select{border:2px solid #b49059;border-radius:8px;background:#fffef9;color:#4a381e;padding:5px 8px;outline:none}#pl-editor input:focus,#pl-editor select:focus{border-color:#65a74c;box-shadow:0 0 0 3px #8cc87333}#pl-editor input[type=number]{width:65px}
+#pl-editor .ed-tools{display:flex;flex-wrap:wrap;gap:7px}#pl-editor .ed-swatch{min-width:47px;border-color:#7c5d35;padding:5px 8px;background:var(--paint);color:#fff;text-shadow:0 1px 2px #0008;box-shadow:inset 0 2px #fff4}#pl-editor .ed-swatch[data-color=white]{color:#75654b;text-shadow:none}#pl-editor .selected{outline:3px solid #e4ae3b;outline-offset:2px}
+#pl-editor .ed-tips{font-size:12px;color:#94774e;line-height:1.7;margin:7px 0 0}#pl-editor .ed-result{padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;background:#f5ebcc;color:#7c653a;white-space:pre-wrap}#pl-editor .ed-result.ok{color:#2d732b;background:#e5f3d6}#pl-editor .ed-result.bad{color:#a14e35;background:#fae5d5}
+#pl-editor .ed-library{display:flex;flex-direction:column;gap:6px}#pl-editor .ed-library-item{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px;background:#f7ecd2;border-radius:10px;border:1px solid #e0c38d}#pl-editor .ed-library-item strong{flex:1;min-width:100px;font-size:12px;overflow-wrap:anywhere}#pl-editor .ed-library-item small{font-weight:400;color:#927b56}#pl-editor .ed-library-item button{font-size:11px;padding:3px 6px;border-radius:7px}
+#pl-editor .ed-foot{padding:10px 14px;background:#efdbab;border-top:3px solid #c9a66e;display:flex;align-items:center;gap:8px;flex-wrap:wrap}#pl-editor .ed-foot-message{flex:1;min-width:160px;font-size:12px;font-weight:700;color:#7d6039}#pl-editor .ed-hidden{display:none!important}
+#pl-editor .ed-confirm{position:absolute;inset:0;background:#24432499;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}#pl-editor .ed-confirm>div{max-width:450px;border:4px solid #97713a;background:#fff9e6;padding:25px;border-radius:22px;box-shadow:0 8px #543c1e55}#pl-editor .ed-confirm h3{margin:0 0 10px;color:#906130}#pl-editor .ed-confirm p{margin:0 0 20px}
+@media(max-width:820px){#pl-editor .ed-window{height:100dvh;width:100vw;max-height:none;border:0;border-radius:0}#pl-editor .ed-head{padding:9px 10px;gap:6px}#pl-editor .ed-title{font-size:18px}#pl-editor .ed-body{display:flex;flex-direction:column;overflow:auto;padding:9px;gap:10px}#pl-editor .ed-preview{padding:12px;flex:none}#pl-editor .ed-board{max-width:370px;aspect-ratio:auto}#pl-editor .ed-side{overflow:visible;flex:none}#pl-editor .ed-caption{font-size:11px}#pl-editor .ed-foot{padding:8px;gap:6px}#pl-editor .ed-foot-message{flex-basis:100%}#pl-editor button{padding:5px 8px}#pl-editor .ed-board .ed-cell{aspect-ratio:1.25}#pl-editor .ed-coordinate{display:none}}
+`;
+
 function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k,v] of Object.entries(props)) {
@@ -48,11 +66,11 @@ function el(tag, props = {}, ...children) {
   for (const child of children.flat()) if (child != null) node.append(child.nodeType ? child : document.createTextNode(String(child)));
   return node;
 }
-const button = (text, action, cls = '', {symbol,...props} = {}) => el('button', { type:'button', class:cls, onclick:action, ...props },...(symbol?[icon(symbol)]:[]),...(text?[text]:[]));
+const button = (text, action, cls = '', props = {}) => el('button', { type:'button', text, class:cls, onclick:action, ...props });
 
 export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {}) {
   const style = el('style', {text:CSS}); document.head.append(style);
-  const host = el('div', {id:'pl-editor', role:'dialog', 'aria-modal':'true', 'aria-labelledby':'ed-title','aria-hidden':'true'});
+  const host = el('div', {id:'pl-editor', role:'dialog', 'aria-modal':'true', 'aria-label':'植物光路关卡搭建器'});
   const win = el('div', {class:'ed-window'}); host.append(win); document.body.append(host);
   let level = null, savedId = null, brush = 'pink', history = [], future = [], library = loadCustomLevels(), solveTimer = 0, checkSeq = 0, solution = null, checkStatus = 'idle', openBeforeFocus = null;
   const beforeSnapshot = () => JSON.stringify({level, savedId});
@@ -72,12 +90,11 @@ export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {})
   function restore(snapshot) { const j=JSON.parse(snapshot);level=j.level;savedId=j.savedId;solution=null;checkStatus='idle';drawAll();scheduleCheck(); }
   function undoEdit() { if(!history.length)return; future.push(beforeSnapshot()); restore(history.pop()); }
   function redoEdit() { if(!future.length)return; history.push(beforeSnapshot()); restore(future.pop()); }
-  const undoButton=button('',undoEdit,'ed-symbol',{id:'ed-undo',symbol:'undo-2',title:'撤销','aria-label':'撤销'}),redoButton=button('',redoEdit,'ed-symbol',{id:'ed-redo',symbol:'redo-2',title:'重做','aria-label':'重做'});
-  const head=el('div',{class:'ed-head'},el('h2',{class:'ed-title',id:'ed-title'},icon('grid-2x2'),'样方编辑器'),undoButton,redoButton,button('',close,'ed-symbol',{symbol:'x',title:'关闭编辑器','aria-label':'关闭编辑器',id:'ed-close'}));win.append(head);
+  const undoButton=button('↶ 撤销',undoEdit,'ed-cream',{id:'ed-undo'}),redoButton=button('↷ 重做',redoEdit,'ed-cream',{id:'ed-redo'});
+  const head=el('div',{class:'ed-head'},el('div',{class:'ed-title',text:'🌱 关卡搭建器'}),undoButton,redoButton,button('✕',close,'ed-red',{title:'关闭',id:'ed-close'}));win.append(head);
   const body=el('div',{class:'ed-body'}),left=el('div',{class:'ed-preview'}),right=el('div',{class:'ed-side'});body.append(left,right);win.append(body);
-  const board=el('div',{class:'ed-board',role:'grid','aria-label':'关卡编辑网格'}),stats=el('div',{class:'ed-stats'}),plateSize=el('small');
-  left.append(el('div',{class:'ed-plate-head'},el('h3',{text:'种植样方'}),plateSize),el('div',{class:'ed-board-wrap'},board),stats);
-  const paramCard=el('section',{class:'ed-card'},el('h3',{text:'关卡参数'}));
+  const board=el('div',{class:'ed-board',role:'grid','aria-label':'关卡编辑网格'}),stats=el('div',{class:'ed-stats'});left.append(board,stats,el('div',{class:'ed-caption',text:'点击格子种花 · 擦除花苞 · 编辑花园形状'}));
+  const paramCard=el('section',{class:'ed-card'},el('h3',{text:'🪴 花园参数'}));
   const nameInput=el('input',{type:'text',id:'ed-name',maxLength:60,'aria-label':'关卡名称',onchange:()=>mutate(()=>{level.title=nameInput.value.trim()||'我的花园';})});
   paramCard.append(el('div',{class:'ed-row'},el('label',{htmlFor:'ed-name',text:'关卡名'}),nameInput));
   const colsInput=el('input',{type:'number',id:'ed-cols',min:3,max:9,'aria-label':'列数'}),rowsInput=el('input',{type:'number',id:'ed-rows',min:3,max:9,'aria-label':'行数'}),seedsInput=el('input',{type:'number',id:'ed-seeds',min:1,max:4,'aria-label':'种子数'});
@@ -88,20 +105,20 @@ export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {})
   colsInput.addEventListener('change',resize);rowsInput.addEventListener('change',resize);seedsInput.addEventListener('change',()=>mutate(()=>{level.seeds=clamp(seedsInput.value,1,4);}));
   paramCard.append(el('div',{class:'ed-row'},el('label',{htmlFor:'ed-cols',text:'列数'}),colsInput,el('label',{htmlFor:'ed-rows',text:'行数'}),rowsInput),el('div',{class:'ed-row'},el('label',{htmlFor:'ed-seeds',text:'种子数'}),seedsInput,button('使用当前关',()=>{try{adopt(getLevel());notify('已载入当前关卡，可自由修改后另存。');}catch(e){notify(e.message);}},'ed-cream')));
   right.append(paramCard);
-  const paintCard=el('section',{class:'ed-card ed-paints'},el('h3',{text:'花苞画笔'})),tools=el('div',{class:'ed-tools',role:'group','aria-label':'画笔'}),brushButtons=[];
-  for(const [color,name]of PALETTE){const title=`${name}花苞画笔`,b=button('',()=>{brush=color;drawTools();},'ed-swatch',{'data-color':color,title,'aria-label':title});b.append(specimen(color,true));b.dataset.brush=color;brushButtons.push(b);tools.append(b);}
-  for(const [k,symbol,title]of[['erase','eraser','擦除花苞'],['mask','grid-3x3','切换可用格与缺口']]){const b=button('',()=>{brush=k;drawTools();},'ed-swatch',{symbol,title,'aria-label':title});b.dataset.brush=k;brushButtons.push(b);tools.append(b);}
-  paintCard.append(tools,el('div',{class:'ed-row'},button('清空花苞',()=>mutate(()=>{level.flowers=[];}),'ed-cream'),button('恢复完整样方',()=>mutate(()=>{level.mask=null;}),'ed-cream')));left.append(paintCard);
-  const solveCard=el('section',{class:'ed-card'},el('h3',{text:'解法校验'})),result=el('div',{class:'ed-result',id:'ed-result',role:'status'});
-  const solveButton=button('检查可解性',()=>check(22000),'ed-green',{id:'ed-check',symbol:'search'});
-  const randomButton=button('随机可解关',()=>{
+  const paintCard=el('section',{class:'ed-card'},el('h3',{text:'🎨 花苞画笔'})),tools=el('div',{class:'ed-tools'}),brushButtons=[];
+  for(const [color,name,hex]of PALETTE){const b=button(name,()=>{brush=color;drawTools();},'ed-swatch',{'data-color':color,'aria-label':`${name}花苞画笔`});b.style.setProperty('--paint',hex);b.dataset.brush=color;brushButtons.push(b);tools.append(b);}
+  for(const [k,text]of[['erase','⌫ 擦除花苞'],['mask','▦ 可用格/缺口']]){const b=button(text,()=>{brush=k;drawTools();},'ed-cream');b.dataset.brush=k;brushButtons.push(b);tools.append(b);}
+  paintCard.append(tools,el('p',{class:'ed-tips',text:'颜色画笔：点击格子添加或改色。擦除只移除花苞；形状工具切换可用格。花苞不能位于缺口，藤蔓遇缺口会停止。'}),el('div',{class:'ed-row'},button('清空花苞',()=>mutate(()=>{level.flowers=[];}),'ed-cream'),button('恢复完整花园',()=>mutate(()=>{level.mask=null;}),'ed-cream')));right.append(paintCard);
+  const solveCard=el('section',{class:'ed-card'},el('h3',{text:'✅ 结构与可解性'})),result=el('div',{class:'ed-result',id:'ed-result',role:'status'});
+  const solveButton=button('🔍 检查可解性',()=>check(22000),'ed-green',{id:'ed-check'});
+  const randomButton=button('🎲 随机可解关',()=>{
     try{const generated=generateLevel({cols:level.cols,rows:level.rows,seedCount:level.seeds,flowerCount:Math.max(3,level.flowers.length)},Date.now()>>>0,level.mask?level.mask.slice():null);mutate(()=>{level={...generated,title:level.title||'我的花园'};savedId=null;});notify('已按当前尺寸和形状生成可解花园。');}catch(e){notify(e.message);}
-  },'ed-blue',{id:'ed-random',symbol:'shuffle'});
-  solveCard.append(result,el('div',{class:'ed-row'},solveButton,randomButton));right.append(solveCard);
-  const libraryCard=el('section',{class:'ed-card'},el('h3',{text:'本机关卡库'})),libraryList=el('div',{class:'ed-library'});libraryCard.append(libraryList);right.append(libraryCard);
-  const foot=el('div',{class:'ed-foot'}),footMessage=el('div',{class:'ed-foot-message',role:'status'}),saveLabel=el('span',{text:'保存'}),saveButton=button('',save,'ed-blue',{id:'ed-save',symbol:'save'}),playButton=button('试玩',play,'ed-green',{id:'ed-play',symbol:'play'});saveButton.append(saveLabel);
+  },'ed-blue',{id:'ed-random'});
+  solveCard.append(result,el('div',{class:'ed-row'},solveButton,randomButton),el('p',{class:'ed-tips',text:'先检查结构，再按当前规则求解。搜索有节点上限；“未找到解”不等于数学上无解。无解或未确认的关卡可保存草稿，试玩前会提示。'}));right.append(solveCard);
+  const libraryCard=el('section',{class:'ed-card'},el('h3',{text:'📁 本机关卡库'})),libraryList=el('div',{class:'ed-library'});libraryCard.append(libraryList);right.append(libraryCard);
+  const foot=el('div',{class:'ed-foot'}),footMessage=el('div',{class:'ed-foot-message',text:'设置种子落点的挑战，让每朵花都盛开。'}),saveButton=button('💾 保存',save,'ed-blue',{id:'ed-save'}),playButton=button('▶ 试玩',play,'ed-green',{id:'ed-play'});
   const importInput=el('input',{type:'file',accept:'.json,application/json',class:'ed-hidden',id:'ed-import-file'});
-  foot.append(footMessage,button('导入',()=>importInput.click(),'ed-cream',{id:'ed-import',symbol:'upload',title:'导入 JSON'}),button('导出',()=>exportJson(false),'ed-cream',{id:'ed-export',symbol:'download',title:'导出 JSON'}),saveButton,playButton,importInput);win.append(foot);
+  foot.append(footMessage,button('⬆ 导入 JSON',()=>importInput.click(),'ed-cream',{id:'ed-import'}),button('⬇ 导出 JSON',()=>exportJson(false),'ed-cream',{id:'ed-export'}),saveButton,playButton,importInput);win.append(foot);
 
   function drawTools(){for(const b of brushButtons){const sel=b.dataset.brush===brush;b.classList.toggle('selected',sel);b.setAttribute('aria-pressed',String(sel));}}
   function paint(c,r){
@@ -116,32 +133,25 @@ export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {})
       else level.flowers.push({c,r,color:brush,id:`flower_${c}_${r}`});
     });
   }
-  let cursor={c:0,r:0};
   function drawBoard(){
-    const restoreFocus=board.contains(document.activeElement);
-    cursor.c=Math.min(cursor.c,level.cols-1);cursor.r=Math.min(cursor.r,level.rows-1);
-    board.replaceChildren();board.style.setProperty('--cols',level.cols);board.style.setProperty('--rows',level.rows);board.setAttribute('aria-colcount',level.cols);board.setAttribute('aria-rowcount',level.rows);
-    plateSize.textContent=`${level.cols} × ${level.rows}`;
+    board.replaceChildren();board.style.gridTemplateColumns=`repeat(${level.cols}, minmax(0,1fr))`;board.style.aspectRatio=String(level.cols/level.rows*1.14);
     for(let r=0;r<level.rows;r++)for(let c=0;c<level.cols;c++){
-      const f=level.flowers.find(x=>x.c===c&&x.r===r),active=!level.mask||!!level.mask[r*level.cols+c],item=button('',()=>paint(c,r),'ed-cell'+(active?'':' hole'),{role:'gridcell',tabIndex:c===cursor.c&&r===cursor.r?0:-1,'aria-rowindex':r+1,'aria-colindex':c+1,'aria-label':`第${r+1}行第${c+1}列：${!active?'缺口':f?PALETTE.find(x=>x[0]===f.color)?.[1]+'花苞':'空格'}`});
+      const f=level.flowers.find(x=>x.c===c&&x.r===r),active=!level.mask||!!level.mask[r*level.cols+c],item=button('',()=>paint(c,r),'ed-cell'+(active?'':' hole'),{role:'gridcell','aria-label':`第${r+1}行第${c+1}列：${!active?'缺口':f?PALETTE.find(x=>x[0]===f.color)?.[1]+'花苞':'空格'}`});
       item.dataset.c=c;item.dataset.r=r;
-      if(f)item.append(specimen(f.color));
+      if(f){const fl=el('span',{class:'ed-flower'});fl.style.setProperty('--plant',PALETTE.find(x=>x[0]===f.color)?.[2]||'#ec5aa4');item.append(fl);}
       item.append(el('span',{class:'ed-coordinate',text:`${c+1},${r+1}`}));board.append(item);
     }
-    if(restoreFocus)board.querySelector('[tabindex="0"]')?.focus({preventScroll:true});
     const cells=level.mask?level.mask.filter(Boolean).length:level.cols*level.rows;
-    stats.replaceChildren(...[`${level.flowers.length} 朵花苞`,`${level.seeds} 颗种子`,`${cells} 个可用格`].map(text=>el('span',{class:'ed-chip',text})));
+    stats.replaceChildren(...[`${level.cols} × ${level.rows}`,`${level.flowers.length} 朵花苞`,`${level.seeds} 颗种子`,`${cells} 个可用格`].map(text=>el('span',{class:'ed-chip',text})));
   }
-  board.addEventListener('focusin',e=>{const cell=e.target.closest('[data-c]');if(!cell)return;const old=board.querySelector('[tabindex="0"]');if(old)old.tabIndex=-1;cell.tabIndex=0;cursor={c:+cell.dataset.c,r:+cell.dataset.r};});
-  board.addEventListener('keydown',e=>{const dir={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!dir)return;e.preventDefault();const c=Math.max(0,Math.min(level.cols-1,cursor.c+dir[0])),r=Math.max(0,Math.min(level.rows-1,cursor.r+dir[1]));board.querySelector(`[data-c="${c}"][data-r="${r}"]`)?.focus();});
   function drawLibrary(){
-    libraryList.replaceChildren();if(!library.length){libraryList.append(el('p',{class:'ed-empty',text:'本浏览器尚未保存关卡。'}));return;}
+    libraryList.replaceChildren();if(!library.length){libraryList.append(el('p',{class:'ed-tips',text:'还没有保存的关卡。保存后仅保留在本浏览器；需要跨设备请导出 JSON。'}));return;}
     for(const item of library){
       const label=el('strong',{},item.title||'我的花园',el('small',{text:` · ${item.cols}×${item.rows} / ${item.flowers.length}花${item.draft?' · 草稿':''}`}));
       const row=el('div',{class:'ed-library-item'},label,button('编辑',()=>{adopt(item,item.id);notify('已载入关卡，可继续编辑。');},'ed-cream'),button('复制',()=>{const cp=clone(item);cp.id=uid();cp.title=(cp.title||'我的花园')+' 副本';library.unshift(cp);if(pushToStorage())drawLibrary();},'ed-cream'),button('导出',()=>download({app:'plant-light-tool',format:'plant-light-level/1',level:item},`${item.title||'garden'}.json`),'ed-cream'),button('删除',()=>{library=library.filter(x=>x.id!==item.id);if(savedId===item.id)savedId=null;if(pushToStorage())drawLibrary();},'ed-red'));
       libraryList.append(row);
     }
-    libraryList.append(button('导出全部关卡',()=>exportJson(true),'ed-cream',{id:'ed-export-all',symbol:'download'}));
+    libraryList.append(button('⬇ 导出全部关卡',()=>exportJson(true),'ed-cream',{id:'ed-export-all'}));
   }
   function drawAll(){if(!level)return;nameInput.value=level.title||'';colsInput.value=level.cols;rowsInput.value=level.rows;seedsInput.value=level.seeds;undoButton.disabled=!history.length;redoButton.disabled=!future.length;solveButton.disabled=checkStatus==='checking';drawTools();drawBoard();drawLibrary();drawResult();}
   function drawResult(){
@@ -149,10 +159,10 @@ export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {})
     if(!v.ok){result.classList.add('bad');result.textContent='结构待修正：'+v.errors.join('；');saveButton.disabled=true;playButton.disabled=true;return;}
     saveButton.disabled=false;playButton.disabled=false;
     if(checkStatus==='checking')result.textContent='正在搜索安全种植路线…';
-    else if(checkStatus==='solved'){result.classList.add('ok');result.textContent=`可解 · ${solution.length} 步：`+solution.map(p=>`(${p.c+1},${p.r+1})`).join(' → ');}
+    else if(checkStatus==='solved'){result.classList.add('ok');result.textContent=`✓ 结构有效，可解 · ${solution.length} 步路线：`+solution.map(p=>`(${p.c+1},${p.r+1})`).join(' → ');}
     else if(checkStatus==='unknown'){result.classList.add('bad');result.textContent='结构有效，但在本次搜索上限内未找到解。可保存草稿，或调整花苞和种子数。';}
-    else result.textContent='结构有效，等待校验。';
-    saveLabel.textContent=checkStatus==='solved'?'保存关卡':'保存草稿';
+    else result.textContent='结构有效；编辑后自动进行小规模搜索，也可以手动检查。';
+    saveButton.textContent=checkStatus==='solved'?'💾 保存关卡':'💾 保存草稿';
   }
   function scheduleCheck(){clearTimeout(solveTimer);checkSeq++;const v=validateEditorLevel(level);if(!v.ok){drawResult();return;}solveTimer=setTimeout(()=>check(level.cols*level.rows>49?1500:5000),700);}
   function check(budget=22000){
@@ -193,7 +203,7 @@ export function createEditor({getLevel, onPlay, onSaved, toast = () => {}} = {})
   });
   function open(raw){
     openBeforeFocus=document.activeElement;library=loadCustomLevels();
-    try{const source=raw||getLevel?.()||generateLevel();footMessage.textContent='';adopt(source,library.some(x=>x.id===source.id)?source.id:null);host.classList.add('open');host.setAttribute('aria-hidden','false');setTimeout(()=>host.querySelector('#ed-close').focus({preventScroll:true}),0);}catch(e){notify('打开关卡失败：'+e.message);}
+    try{const source=raw||getLevel?.()||generateLevel();adopt(source,library.some(x=>x.id===source.id)?source.id:null);host.classList.add('open');host.setAttribute('aria-hidden','false');setTimeout(()=>nameInput.focus(),0);}catch(e){notify('打开关卡失败：'+e.message);}
   }
   function close(){clearTimeout(solveTimer);checkSeq++;solveButton.disabled=false;host.classList.remove('open');host.setAttribute('aria-hidden','true');for(const o of host.querySelectorAll('.ed-confirm'))o.remove();openBeforeFocus?.focus?.();}
   host.addEventListener('keydown',event=>{

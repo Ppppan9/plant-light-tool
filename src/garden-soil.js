@@ -1,36 +1,33 @@
-const TAU=Math.PI*2;
-const marks=[
-  [[19,66],[92,23],[88,21]],[[82,68],[86,65],[28,20]],[[87,30],[28,71]],
-  [[26,23],[32,25],[94,67]],[[69,73],[80,23],[85,26]],[[24,54],[89,29]]
+// All cells share the original baked light direction. Their surface marks
+// are distributed independently so adjacent tiles don't repeat the same pores.
+const SURFACES = [
+  [[24,59,2.9], [29,62,1.3], [83,30,1.5]],
+  [[82,48,2.5], [78,44,1.7], [35,26,1.3]],
+  [[39,31,2.1], [44,29,1.2], [74,69,2.3]],
+  [[80,27,2.5], [84,25,1.1], [27,67,1.8]],
+  [[32,48,1.6], [88,63,2.4], [84,67,1.5]],
+  [[52,69,2.4], [58,70,1.3], [28,28,1.7]],
 ];
-export function soilVariant(c,r){return (c*7+r*11+(c*r)%5)%marks.length;}
 
-function plate(g,x,y,w,h,r,fill){
-  g.beginPath();g.roundRect(x,y,w,h,r);g.fillStyle=fill;g.fill();
+export function soilVariant(c, r) {
+  return (c * 7 + r * 11 + (c * r) % 5) % SURFACES.length;
 }
-export function installSoilSurfaces(sprite,key,color='#bbae98'){
-  return marks.map((specks,n)=>sprite(`${key}_bed_${n}`,118,97,g=>{
-    plate(g,2.0,3.0,114,92,6,'rgba(12,33,33,.36)');
-    plate(g,2.5,2.0,113,91,6,color);
-    g.save();g.beginPath();g.roundRect(2.5,2,113,91,6);g.clip();
-    const light=g.createLinearGradient(17,0,58,104);
-    light.addColorStop(0,'rgba(255,248,226,.35)');light.addColorStop(.68,'rgba(255,248,226,.05)');
-    light.addColorStop(1,'rgba(73,66,53,.13)');g.fillStyle=light;g.fillRect(0,0,118,97);
-    g.strokeStyle='rgba(255,248,228,.35)';g.lineWidth=1;
-    g.beginPath();g.moveTo(4,74);g.lineTo(4,9);g.quadraticCurveTo(4,4,9,4);g.lineTo(106,4);g.stroke();
-    // A shallow slipcast edge and minute mineral inclusions leave the face quiet.
-    g.strokeStyle='rgba(68,65,53,.22)';g.beginPath();g.moveTo(7,90);g.lineTo(108,90);
-    g.quadraticCurveTo(113,90,113,85);g.stroke();
-    for(const [i,[x,y]]of specks.entries()){
-      g.fillStyle=i===0?'rgba(75,68,54,.19)':'rgba(75,68,54,.12)';
-      g.beginPath();g.ellipse(x,y,i===0?1.65:.95,.70-i*.09,-.48,0,TAU);g.fill();
+
+export function installSoilSurfaces(sprite, key, base) {
+  return SURFACES.map((marks, i) => sprite(`${key}_bed_${i}`, 118, 97, ctx => {
+    ctx.drawImage(base, 0, 0, 118, 97);
+    for (const [x, y, size] of marks) {
+      // An upper shadow and a tiny lower lip read as shallow impressions
+      // at phone scale and stay in the user's chosen soil colour.
+      ctx.fillStyle = 'rgba(87,46,16,.22)';
+      ctx.beginPath();
+      ctx.ellipse(x, y, size * 1.32, size * .74, -.38, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,233,186,.32)';
+      ctx.lineWidth = .9;
+      ctx.beginPath();
+      ctx.ellipse(x, y + .55, size * 1.32, size * .74, -.38, .16, 2.8);
+      ctx.stroke();
     }
-    let seed=n*31+17;
-    const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
-    for(let i=0;i<180;i++){
-      const x=rand()*118,y=rand()*97,bright=rand()>.56;
-      g.fillStyle=bright?'rgba(255,252,232,.15)':'rgba(77,75,61,.072)';g.fillRect(x,y,.62+rand()*.42,.64);
-    }
-    g.restore();
   }));
 }

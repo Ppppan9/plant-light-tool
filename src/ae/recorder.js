@@ -1,4 +1,4 @@
-// 花候图志 · After Effects 精灵时间轴记录器
+// 植物光路 · After Effects 精灵时间轴记录器
 // 网页每帧绘制的就是 scene 列表（素材 + 中心位置/缩放/旋转/不透明度/层级）。
 // 这里逐帧采样；导出时每个元素（id + 素材）的每段连续出现 = 一个独立图层。
 import { makeZip } from './zip.js';
@@ -42,8 +42,8 @@ export function layerName(id, asset, zh) {
 }
 const labelOf = (id, asset) =>
   /^(end_|final_|win_)/.test(id) ? LABEL.end :
-  /^decor_/.test(id) ? LABEL.scene :
-  /^(atlas_|text_)/.test(asset) ? LABEL.ui :
+  /^(decor_|bush_|grass_)/.test(id) ? LABEL.scene :
+  /^(icon_|text_)/.test(asset)||/^(seed_hud_|seed_badge_)/.test(id) ? LABEL.ui :
   /^(flower|bud)/.test(id) ? LABEL.flower :
   /^(vine|leaf|path|beam)/.test(id) ? LABEL.vine :
   /^seed/.test(id) ? LABEL.seed :
@@ -98,7 +98,7 @@ export function createAERecorder(api) {
     const D = Math.max(1 / fps, Math.ceil((rec.lastT + 1 / fps) * fps - 1e-6) / fps);
     const assets = [], assetFiles = [], pending = [], used = new Map();
     const folders = [
-      { id: 'root', name: zh ? '花候图志_AE工程' : 'PhenologyAtlas_AE' },
+      { id: 'root', name: zh ? '植物光路_AE工程' : 'PlantLight_AE' },
       { id: 'img', name: zh ? '素材' : 'Assets', parent: 'root' },
       { id: 'scene', name: zh ? '场景' : 'Scene', parent: 'img' },
       { id: 'flowers', name: zh ? '花朵' : 'Flowers', parent: 'img' },
@@ -218,7 +218,7 @@ export function createAERecorder(api) {
     for (const e of rec.sfx) markers.push([r4(e.t), ZH(e.name)]);
     const d = new Date(), p2 = x => String(x).padStart(2, '0');
     const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
-    comps.push({ id: 'main', name: zh ? '主合成_花候图志' : 'Main_PhenologyAtlas', w: CW, h: CH, duration: D, fps, folder: 'root', bg: [0, 0, 0], layers, markers });
+    comps.push({ id: 'main', name: zh ? '主合成_植物光路' : 'Main_PlantLight', w: CW, h: CH, duration: D, fps, folder: 'root', bg: [0, 0, 0], layers, markers });
     const [CW2, CH2] = S.aeSize && S.aeSize !== 'canvas' ? S.aeSize.split('x').map(Number) : [E.canvas.width, E.canvas.height];
     const K = Math.round(CW2 / CW * 1e6) / 1e6;
     if (K !== 1) {
@@ -229,7 +229,7 @@ export function createAERecorder(api) {
       }
     }
     if (!zh) {
-      const T = [['主合成_花候图志','Main_PhenologyAtlas'],['花候图志_AE工程','PhenologyAtlas_AE'],['音效_逐事件','SFX events'],['混合音轨','Mixed audio'],['预合成','Precomps'],['音效','SFX'],['素材','Assets'],['界面','UI'],['音频','Audio'],['场景','Scene'],['花朵','Flowers'],['藤蔓与种子','Vines and seeds'],['手指','Hand'],['结束页','End card'],['免责声明','Disclaimer'],['背景','Background'],['播种','seed'],['生长','grow'],['开花','bloom'],['撤销','undo'],['通关','win'],['失败','fail']];
+      const T = [['主合成_植物光路','Main_PlantLight'],['植物光路_AE工程','PlantLight_AE'],['音效_逐事件','SFX events'],['混合音轨','Mixed audio'],['预合成','Precomps'],['音效','SFX'],['素材','Assets'],['界面','UI'],['音频','Audio'],['场景','Scene'],['花朵','Flowers'],['藤蔓与种子','Vines and seeds'],['手指','Hand'],['结束页','End card'],['免责声明','Disclaimer'],['背景','Background'],['播种','seed'],['生长','grow'],['开花','bloom'],['撤销','undo'],['通关','win'],['失败','fail']];
       const tr = x => { if (typeof x !== 'string') return x; for (const [a, b] of T) x = x.split(a).join(b); return x; };
       for (const c of comps) { c.name = tr(c.name); if (c.markers) c.markers = c.markers.map(([t, m]) => [t, tr(m)]); for (const l of c.layers) l.name = tr(l.name); }
       for (const f of folders) f.name = tr(f.name);

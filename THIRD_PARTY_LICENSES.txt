@@ -1,63 +1,19 @@
-花候图志 / FIELD ATLAS · 核玩工具来源与第三方许可
+植物光路 · 核玩工具第三方来源与许可
 
-1. 当前版本（v2）与历史版本
+1. 参考与实现来源
 
-- v2 的制图纸、薄陶样方、标本盘、植物线刻、结算花束、浇水壶、操作用标本笔和游戏界面由本项目以 Canvas / SVG 与系统字体绘制。工作台部分图标使用下述 Lucide 图标子集。
-- 花苞、花头、嫩叶、根部叶簇与种子素材来自本项目自 v1.1 起制作的程序化 Blender 模型，源脚本为 scripts/render_botanicals.py 与 scripts/finalize_botanicals.py，渲染成果见 src/art-assets/polished。藤蔓及交互粒子以程序曲线与着色绘制。
-- 玩法与第 2–12 关的数字布局参考用户提供的视频。v1 曾使用基于视频提取、清理及重制的场景位图，并沿用了同系列工具的操作手图。参考游戏未提供源码或素材授权。v2 不再分发这些场景位图、旧操作手图及展示它们的旧截图；历史 Git 提交并未改写。历史观察见 ref/ANALYSIS.md。
+- 游戏画面依据用户提供的视频提取、清理及重制；没有附带原游戏源码或素材许可证。素材来源见 ref/ANALYSIS.md。
+- v2.1 的游戏功能图标（含道具、计数、奖励及声音状态）由本项目使用 Canvas 路径绘制。更换图标没有改变花园场景及内置关卡的参考来源。
+- v1.1 花苞、花头、嫩叶、根部叶簇与种子为本项目新建的程序化 3D 渲染素材；源脚本 scripts/render_botanicals.py 与 scripts/finalize_botanicals.py，素材目录 src/art-assets/polished。藤蔓由本项目连续曲线渲染。其余参考来源不变。
 - 工作台约定参考 Ppppan9/block-tower-tool：
   https://github.com/Ppppan9/block-tower-tool
   只读定位提交 a4d001d49be40468ba2a4bfc1af06b0fc7a3a478。
-- 录制/工程/试玩的通用架构依据同工作区 boulder-rescue-tool 与 TOOLKIT_WORKFLOW_RECORD.md 适配。上游未附的通用授权不在此推定为 MIT；以下许可只适用于各自标明的第三方组件。
+- 录制/工程/试玩的通用架构依据同工作区 boulder-rescue-tool 与 TOOLKIT_WORKFLOW_RECORD.md 适配。默认手图与同系列麻将工具保持一致。上游未附的通用授权不在此推定为 MIT；以下 MIT 条款只适用于标明的第三方组件。
 
-2. Lucide 图标子集及其 Feather 来源
-
-src/atlas-icons.js uses icon paths from lucide-static 0.468.0:
-https://registry.npmjs.org/lucide-static/-/lucide-static-0.468.0.tgz
-
-ISC License
-
-Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-Feather (https://github.com/feathericons/feather/blob/v4.29.2/LICENSE)
-The MIT License (MIT)
-
-Copyright (c) 2013-2023 Cole Bemis
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-3. Baloo 2 ExtraBold（历史版本；v2 不再随附字体文件）
+2. Baloo 2 ExtraBold
 
 Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
-SIL Open Font License, Version 1.1。v1 所用拉丁子集 WOFF 来自积木塔工具内置字体，下列通知为历史记录保留。
+SIL Open Font License, Version 1.1。拉丁子集 WOFF 来自积木塔工具内置字体。
 
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
 -----------------------------------------------------------

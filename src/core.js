@@ -2,7 +2,13 @@
 import referenceData from '../ref/reference-levels.json' with { type: 'json' };
 export const COLORS = ['pink', 'purple', 'blue', 'orange', 'white'];
 const flower = (c, r, color, id) => ({ c, r, color, id });
-export const REFERENCE_LEVELS = referenceData.map(L => ({...L, title:`观测页 ${String(L.id).padStart(2,'0')}`, mask:null, flowers:L.flowers.map((f,i)=>({...f,id:`flower_${i}`}))}));
+const definition = (id, cols, rows, seeds, coordinates, solution, hintText = '') => ({ id, title: `Level ${id}`, cols, rows, seeds, flowers: coordinates.map((p, i) => flower(p[0], p[1], p[2] || COLORS[i % COLORS.length], `flower_${i}`)), solution: solution.map(([c,r]) => ({c,r})), hintText, mask: null });
+const INITIAL_LEVELS = [
+  definition(2,5,5,1,[[1,0,'white'],[0,3,'pink'],[2,3,'purple'],[3,3,'orange']],[[1,3]],'Slide your finger to aim. Slide\noff the garden to cancel.'),
+  definition(3,5,6,2,[[1,0,'white'],[0,1,'pink'],[2,1,'purple'],[2,4,'purple'],[4,4,'blue'],[3,5,'orange']],[[1,1],[3,4]],'You have 2 seeds now — plant them both.'),
+  definition(4,5,6,2,[[1,0,'white'],[0,1,'pink'],[4,1,'blue'],[2,4,'purple'],[4,4,'blue'],[3,5,'orange']],[[1,1],[3,4]],'Order matters — vines block each other.'),
+];
+export const REFERENCE_LEVELS = referenceData.map(L => ({...L, title:`Level ${L.id}`, mask:null, flowers:L.flowers.map((f,i)=>({...f,id:`flower_${i}`}))}));
 export function random(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 export const cellKey = (c,r) => `${c},${r}`;
 export function inBounds(L,c,r) { return Number.isInteger(c) && Number.isInteger(r) && c>=0 && r>=0 && c<L.cols && r<L.rows && (!L.mask || !!L.mask[r*L.cols+c]); }
@@ -64,12 +70,12 @@ export function validateLevel(raw) {
 }
 export function normalizeLevel(raw) {
   const test=validateLevel(raw);if(!test.ok)throw new Error(test.errors.join('；'));
-  return {id:raw.id||'custom',title:String(raw.title||'自编样地').slice(0,60),cols:+raw.cols,rows:+raw.rows,seeds:+raw.seeds,mask:raw.mask?raw.mask.map(Boolean):null,flowers:raw.flowers.map((f,i)=>({id:`flower_${i}`,c:f.c,r:f.r,color:COLORS.includes(f.color)?f.color:COLORS[i%COLORS.length]})),hintText:String(raw.hintText??'观察花苞的位置，为第一粒种子选一格空地。').slice(0,160)};
+  return {id:raw.id||'custom',title:String(raw.title||'My garden').slice(0,60),cols:+raw.cols,rows:+raw.rows,seeds:+raw.seeds,mask:raw.mask?raw.mask.map(Boolean):null,flowers:raw.flowers.map((f,i)=>({id:`flower_${i}`,c:f.c,r:f.r,color:COLORS.includes(f.color)?f.color:COLORS[i%COLORS.length]})),hintText:String(raw.hintText||'Every flower deserves a little sunshine.').slice(0,160)};
 }
 export function generateLevel(settings={},seed=20261118,mask=null) {
   const cols=Math.max(3,Math.min(9,+settings.cols||6)),rows=Math.max(3,Math.min(9,+settings.rows||6)),seeds=Math.max(1,Math.min(4,+settings.seedCount||2)),rnd=random(seed);
   for(let attempt=0;attempt<300;attempt++) {
-    const L={id:'random',title:'野外采样',cols,rows,seeds,flowers:[],mask,hintText:'沿行与列寻找交点，让有限的种子触及每一朵花。'},ST=createState(),origins=[];
+    const L={id:'random',title:'New garden',cols,rows,seeds,flowers:[],mask,hintText:'Find the right places. Let your garden bloom.'},ST=createState(),origins=[];
     const free=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)if(inBounds(L,c,r))free.push({c,r});
     for(let n=0;n<seeds;n++){
       const choices=free.map(p=>preview(L,ST,p.c,p.r)).filter(p=>p.ok&&p.cells.length>=3);

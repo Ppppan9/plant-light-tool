@@ -104,7 +104,7 @@ try{
   await clickSolution(page,{all:true});eq((await state()).status,'won','编辑后关卡按实际指针点击通关');
   await applySettings(page,{growMs:770,handSize:.53,sfxVolume:1.17,theme:'mint'});
   const settingFile=await nextDownload(page,()=>page.locator('#btnExport').click(),out),settingsJSON=JSON.parse(await fs.readFile(settingFile,'utf8'));
-  check(settingsJSON.app==='plant-light-tool'&&settingsJSON.version===2&&settingsJSON.settings.growMs===770,'设置下载符合版本信封且保留用户值');
+  check(settingsJSON.app==='plant-light-tool'&&settingsJSON.version===3&&settingsJSON.settings.growMs===770,'设置下载符合版本信封且保留用户值');
   await applySettings(page,{growMs:220});await page.locator('#importFile').setInputFiles(settingFile);await page.waitForFunction(()=>__app.S.growMs===770);
   eq(await page.evaluate(()=>__app.S.growMs),770,'真实文件导入恢复设置');
   await page.reload();await waitGame(page);

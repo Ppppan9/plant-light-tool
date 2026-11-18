@@ -1,4 +1,4 @@
-// 花候图志 · 3D 动画导出（浏览器内生成真实 glTF + FBX）
+// 植物光路 · 3D 动画导出（浏览器内生成真实 glTF + FBX）
 // 复用 AE 逐帧时间轴：每个 AE 图层 → 一块带贴图的平面，按元素类别放到不同景深，
 // 形成一台可环绕观看的 2.5D 花园立体景箱；glTF/FBX 内含逐帧 TRS 动画与相机。
 import * as THREE from 'three';
@@ -110,7 +110,7 @@ export async function export3DAnimation({ rec, S, recorder, canvas } = {}) {
 
   const imageAssets = TL.assets.filter(a => /\.png$/i.test(a.file));
   const used = new Set();
-  const backdropColor = rec.S.bgBottom || '#102f38';
+  const backdropColor = rec.S.bgBottom || '#386a2a';
   const scene = new THREE.Scene();
   scene.name = 'PlantLight_3D';
   scene.background = new THREE.Color(backdropColor);

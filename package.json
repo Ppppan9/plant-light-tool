@@ -1,9 +1,9 @@
 {
   "name": "plant-light-tool",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
-  "description": "花候图志 · 核玩工具：十字藤蔓光线解谜、关卡编辑、录制与 AE/GLB/FBX/H5 导出",
+  "description": "植物光路 · 核玩工具：十字藤蔓光线解谜、关卡编辑、录制与 AE/GLB/FBX/H5 导出",
   "scripts": {
     "build": "node build.mjs",
     "dev": "node server.mjs",
